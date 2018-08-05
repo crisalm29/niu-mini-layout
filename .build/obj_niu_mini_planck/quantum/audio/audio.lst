@@ -1,0 +1,2430 @@
+   1               		.file	"audio.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               	.global	__mulsf3
+  11               	.global	__floatunsisf
+  12               	.global	__divsf3
+  13               		.section	.text.play_notes,"ax",@progbits
+  14               	.global	play_notes
+  16               	play_notes:
+  17               	.LFB22:
+  18               		.file 1 "quantum/audio/audio.c"
+   1:quantum/audio/audio.c **** /* Copyright 2016 Jack Humbert
+   2:quantum/audio/audio.c ****  *
+   3:quantum/audio/audio.c ****  * This program is free software: you can redistribute it and/or modify
+   4:quantum/audio/audio.c ****  * it under the terms of the GNU General Public License as published by
+   5:quantum/audio/audio.c ****  * the Free Software Foundation, either version 2 of the License, or
+   6:quantum/audio/audio.c ****  * (at your option) any later version.
+   7:quantum/audio/audio.c ****  *
+   8:quantum/audio/audio.c ****  * This program is distributed in the hope that it will be useful,
+   9:quantum/audio/audio.c ****  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  10:quantum/audio/audio.c ****  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  11:quantum/audio/audio.c ****  * GNU General Public License for more details.
+  12:quantum/audio/audio.c ****  *
+  13:quantum/audio/audio.c ****  * You should have received a copy of the GNU General Public License
+  14:quantum/audio/audio.c ****  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  15:quantum/audio/audio.c ****  */
+  16:quantum/audio/audio.c **** 
+  17:quantum/audio/audio.c **** #include <stdio.h>
+  18:quantum/audio/audio.c **** #include <string.h>
+  19:quantum/audio/audio.c **** //#include <math.h>
+  20:quantum/audio/audio.c **** #if defined(__AVR__)
+  21:quantum/audio/audio.c ****   #include <avr/pgmspace.h>
+  22:quantum/audio/audio.c ****   #include <avr/interrupt.h>
+  23:quantum/audio/audio.c ****   #include <avr/io.h>
+  24:quantum/audio/audio.c **** #endif
+  25:quantum/audio/audio.c **** #include "print.h"
+  26:quantum/audio/audio.c **** #include "audio.h"
+  27:quantum/audio/audio.c **** #include "keymap.h"
+  28:quantum/audio/audio.c **** #include "wait.h"
+  29:quantum/audio/audio.c **** 
+  30:quantum/audio/audio.c **** #include "eeconfig.h"
+  31:quantum/audio/audio.c **** 
+  32:quantum/audio/audio.c **** #define CPU_PRESCALER 8
+  33:quantum/audio/audio.c **** 
+  34:quantum/audio/audio.c **** // -----------------------------------------------------------------------------
+  35:quantum/audio/audio.c **** // Timer Abstractions
+  36:quantum/audio/audio.c **** // -----------------------------------------------------------------------------
+  37:quantum/audio/audio.c **** 
+  38:quantum/audio/audio.c **** //Currently we support timers 1 and 3 used at the sime time, channels A-C,
+  39:quantum/audio/audio.c **** //pins PB5, PB6, PB7, PC4, PC5, and PC6
+  40:quantum/audio/audio.c **** #if defined(C6_AUDIO)
+  41:quantum/audio/audio.c ****     #define CPIN_AUDIO
+  42:quantum/audio/audio.c ****     #define CPIN_SET_DIRECTION DDRC |= _BV(PORTC6);
+  43:quantum/audio/audio.c ****     #define INIT_AUDIO_COUNTER_3 TCCR3A = (0 << COM3A1) | (0 << COM3A0) | (1 << WGM31) | (0 << WGM3
+  44:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_3_ISR TIMSK3 |= _BV(OCIE3A)
+  45:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_3_ISR TIMSK3 &= ~_BV(OCIE3A)
+  46:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_3_OUTPUT TCCR3A |= _BV(COM3A1);
+  47:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_3_OUTPUT TCCR3A &= ~(_BV(COM3A1) | _BV(COM3A0));
+  48:quantum/audio/audio.c ****     #define TIMER_3_PERIOD     ICR3
+  49:quantum/audio/audio.c ****     #define TIMER_3_DUTY_CYCLE OCR3A
+  50:quantum/audio/audio.c ****     #define TIMER3_AUDIO_vect TIMER3_COMPA_vect
+  51:quantum/audio/audio.c **** #endif
+  52:quantum/audio/audio.c **** #if defined(C5_AUDIO)
+  53:quantum/audio/audio.c ****     #define CPIN_AUDIO
+  54:quantum/audio/audio.c ****     #define CPIN_SET_DIRECTION DDRC |= _BV(PORTC5);
+  55:quantum/audio/audio.c ****     #define INIT_AUDIO_COUNTER_3 TCCR3A = (0 << COM3B1) | (0 << COM3B0) | (1 << WGM31) | (0 << WGM3
+  56:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_3_ISR TIMSK3 |= _BV(OCIE3B)
+  57:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_3_ISR TIMSK3 &= ~_BV(OCIE3B)
+  58:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_3_OUTPUT TCCR3A |= _BV(COM3B1);
+  59:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_3_OUTPUT TCCR3A &= ~(_BV(COM3B1) | _BV(COM3B0));
+  60:quantum/audio/audio.c ****     #define TIMER_3_PERIOD     ICR3
+  61:quantum/audio/audio.c ****     #define TIMER_3_DUTY_CYCLE OCR3B
+  62:quantum/audio/audio.c ****     #define TIMER3_AUDIO_vect TIMER3_COMPB_vect
+  63:quantum/audio/audio.c **** #endif
+  64:quantum/audio/audio.c **** #if defined(C4_AUDIO)
+  65:quantum/audio/audio.c ****     #define CPIN_AUDIO
+  66:quantum/audio/audio.c ****     #define CPIN_SET_DIRECTION DDRC |= _BV(PORTC4);
+  67:quantum/audio/audio.c ****     #define INIT_AUDIO_COUNTER_3 TCCR3A = (0 << COM3C1) | (0 << COM3C0) | (1 << WGM31) | (0 << WGM3
+  68:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_3_ISR TIMSK3 |= _BV(OCIE3C)
+  69:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_3_ISR TIMSK3 &= ~_BV(OCIE3C)
+  70:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_3_OUTPUT TCCR3A |= _BV(COM3C1);
+  71:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_3_OUTPUT TCCR3A &= ~(_BV(COM3C1) | _BV(COM3C0));
+  72:quantum/audio/audio.c ****     #define TIMER_3_PERIOD     ICR3
+  73:quantum/audio/audio.c ****     #define TIMER_3_DUTY_CYCLE OCR3C
+  74:quantum/audio/audio.c ****     #define TIMER3_AUDIO_vect TIMER3_COMPC_vect
+  75:quantum/audio/audio.c **** #endif
+  76:quantum/audio/audio.c **** 
+  77:quantum/audio/audio.c **** #if defined(B5_AUDIO)
+  78:quantum/audio/audio.c ****     #define BPIN_AUDIO
+  79:quantum/audio/audio.c ****     #define BPIN_SET_DIRECTION DDRB |= _BV(PORTB5);
+  80:quantum/audio/audio.c ****     #define INIT_AUDIO_COUNTER_1 TCCR1A = (0 << COM1A1) | (0 << COM1A0) | (1 << WGM11) | (0 << WGM1
+  81:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_1_ISR TIMSK1 |= _BV(OCIE1A)
+  82:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_1_ISR TIMSK1 &= ~_BV(OCIE1A)
+  83:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_1_OUTPUT TCCR1A |= _BV(COM1A1);
+  84:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_1_OUTPUT TCCR1A &= ~(_BV(COM1A1) | _BV(COM1A0));
+  85:quantum/audio/audio.c ****     #define TIMER_1_PERIOD     ICR1
+  86:quantum/audio/audio.c ****     #define TIMER_1_DUTY_CYCLE OCR1A
+  87:quantum/audio/audio.c ****     #define TIMER1_AUDIO_vect TIMER1_COMPA_vect
+  88:quantum/audio/audio.c **** #endif
+  89:quantum/audio/audio.c **** #if defined(B6_AUDIO)
+  90:quantum/audio/audio.c ****     #define BPIN_AUDIO
+  91:quantum/audio/audio.c ****     #define BPIN_SET_DIRECTION DDRB |= _BV(PORTB6);
+  92:quantum/audio/audio.c ****     #define INIT_AUDIO_COUNTER_1 TCCR1A = (0 << COM1B1) | (0 << COM1B0) | (1 << WGM11) | (0 << WGM1
+  93:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_1_ISR TIMSK1 |= _BV(OCIE1B)
+  94:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_1_ISR TIMSK1 &= ~_BV(OCIE1B)
+  95:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_1_OUTPUT TCCR1A |= _BV(COM1B1);
+  96:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_1_OUTPUT TCCR1A &= ~(_BV(COM1B1) | _BV(COM1B0));
+  97:quantum/audio/audio.c ****     #define TIMER_1_PERIOD     ICR1
+  98:quantum/audio/audio.c ****     #define TIMER_1_DUTY_CYCLE OCR1B
+  99:quantum/audio/audio.c ****     #define TIMER1_AUDIO_vect TIMER1_COMPB_vect
+ 100:quantum/audio/audio.c **** #endif
+ 101:quantum/audio/audio.c **** #if defined(B7_AUDIO)
+ 102:quantum/audio/audio.c ****     #define BPIN_AUDIO
+ 103:quantum/audio/audio.c ****     #define BPIN_SET_DIRECTION DDRB |= _BV(PORTB7);
+ 104:quantum/audio/audio.c ****     #define INIT_AUDIO_COUNTER_1 TCCR1A = (0 << COM1C1) | (0 << COM1C0) | (1 << WGM11) | (0 << WGM1
+ 105:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_1_ISR TIMSK1 |= _BV(OCIE1C)
+ 106:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_1_ISR TIMSK1 &= ~_BV(OCIE1C)
+ 107:quantum/audio/audio.c ****     #define ENABLE_AUDIO_COUNTER_1_OUTPUT TCCR1A |= _BV(COM1C1);
+ 108:quantum/audio/audio.c ****     #define DISABLE_AUDIO_COUNTER_1_OUTPUT TCCR1A &= ~(_BV(COM1C1) | _BV(COM1C0));
+ 109:quantum/audio/audio.c ****     #define TIMER_1_PERIOD     ICR1
+ 110:quantum/audio/audio.c ****     #define TIMER_1_DUTY_CYCLE OCR1C
+ 111:quantum/audio/audio.c ****     #define TIMER1_AUDIO_vect TIMER1_COMPC_vect
+ 112:quantum/audio/audio.c **** #endif
+ 113:quantum/audio/audio.c **** // -----------------------------------------------------------------------------
+ 114:quantum/audio/audio.c **** 
+ 115:quantum/audio/audio.c **** 
+ 116:quantum/audio/audio.c **** int voices = 0;
+ 117:quantum/audio/audio.c **** int voice_place = 0;
+ 118:quantum/audio/audio.c **** float frequency = 0;
+ 119:quantum/audio/audio.c **** float frequency_alt = 0;
+ 120:quantum/audio/audio.c **** int volume = 0;
+ 121:quantum/audio/audio.c **** long position = 0;
+ 122:quantum/audio/audio.c **** 
+ 123:quantum/audio/audio.c **** float frequencies[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+ 124:quantum/audio/audio.c **** int volumes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+ 125:quantum/audio/audio.c **** bool sliding = false;
+ 126:quantum/audio/audio.c **** 
+ 127:quantum/audio/audio.c **** float place = 0;
+ 128:quantum/audio/audio.c **** 
+ 129:quantum/audio/audio.c **** uint8_t * sample;
+ 130:quantum/audio/audio.c **** uint16_t sample_length = 0;
+ 131:quantum/audio/audio.c **** 
+ 132:quantum/audio/audio.c **** bool     playing_notes = false;
+ 133:quantum/audio/audio.c **** bool     playing_note = false;
+ 134:quantum/audio/audio.c **** float    note_frequency = 0;
+ 135:quantum/audio/audio.c **** float    note_length = 0;
+ 136:quantum/audio/audio.c **** uint8_t  note_tempo = TEMPO_DEFAULT;
+ 137:quantum/audio/audio.c **** float    note_timbre = TIMBRE_DEFAULT;
+ 138:quantum/audio/audio.c **** uint16_t note_position = 0;
+ 139:quantum/audio/audio.c **** float (* notes_pointer)[][2];
+ 140:quantum/audio/audio.c **** uint16_t notes_count;
+ 141:quantum/audio/audio.c **** bool     notes_repeat;
+ 142:quantum/audio/audio.c **** bool     note_resting = false;
+ 143:quantum/audio/audio.c **** 
+ 144:quantum/audio/audio.c **** uint8_t current_note = 0;
+ 145:quantum/audio/audio.c **** uint8_t rest_counter = 0;
+ 146:quantum/audio/audio.c **** 
+ 147:quantum/audio/audio.c **** #ifdef VIBRATO_ENABLE
+ 148:quantum/audio/audio.c **** float vibrato_counter = 0;
+ 149:quantum/audio/audio.c **** float vibrato_strength = .5;
+ 150:quantum/audio/audio.c **** float vibrato_rate = 0.125;
+ 151:quantum/audio/audio.c **** #endif
+ 152:quantum/audio/audio.c **** 
+ 153:quantum/audio/audio.c **** float polyphony_rate = 0;
+ 154:quantum/audio/audio.c **** 
+ 155:quantum/audio/audio.c **** static bool audio_initialized = false;
+ 156:quantum/audio/audio.c **** 
+ 157:quantum/audio/audio.c **** audio_config_t audio_config;
+ 158:quantum/audio/audio.c **** 
+ 159:quantum/audio/audio.c **** uint16_t envelope_index = 0;
+ 160:quantum/audio/audio.c **** bool glissando = true;
+ 161:quantum/audio/audio.c **** 
+ 162:quantum/audio/audio.c **** #ifndef STARTUP_SONG
+ 163:quantum/audio/audio.c ****     #define STARTUP_SONG SONG(STARTUP_SOUND)
+ 164:quantum/audio/audio.c **** #endif
+ 165:quantum/audio/audio.c **** #ifndef AUDIO_ON_SONG
+ 166:quantum/audio/audio.c ****     #define AUDIO_ON_SONG SONG(AUDIO_ON_SOUND)
+ 167:quantum/audio/audio.c **** #endif
+ 168:quantum/audio/audio.c **** #ifndef AUDIO_OFF_SONG
+ 169:quantum/audio/audio.c ****     #define AUDIO_OFF_SONG SONG(AUDIO_OFF_SOUND)
+ 170:quantum/audio/audio.c **** #endif
+ 171:quantum/audio/audio.c **** float startup_song[][2] = STARTUP_SONG;
+ 172:quantum/audio/audio.c **** float audio_on_song[][2] = AUDIO_ON_SONG;
+ 173:quantum/audio/audio.c **** float audio_off_song[][2] = AUDIO_OFF_SONG;
+ 174:quantum/audio/audio.c **** 
+ 175:quantum/audio/audio.c **** void audio_init()
+ 176:quantum/audio/audio.c **** {
+ 177:quantum/audio/audio.c **** 
+ 178:quantum/audio/audio.c ****     // Check EEPROM
+ 179:quantum/audio/audio.c ****     if (!eeconfig_is_enabled())
+ 180:quantum/audio/audio.c ****     {
+ 181:quantum/audio/audio.c ****         eeconfig_init();
+ 182:quantum/audio/audio.c ****     }
+ 183:quantum/audio/audio.c ****     audio_config.raw = eeconfig_read_audio();
+ 184:quantum/audio/audio.c **** 
+ 185:quantum/audio/audio.c ****     if (!audio_initialized) {
+ 186:quantum/audio/audio.c **** 
+ 187:quantum/audio/audio.c ****         // Set audio ports as output
+ 188:quantum/audio/audio.c ****         #ifdef CPIN_AUDIO
+ 189:quantum/audio/audio.c ****           CPIN_SET_DIRECTION
+ 190:quantum/audio/audio.c ****           DISABLE_AUDIO_COUNTER_3_ISR;
+ 191:quantum/audio/audio.c ****         #endif
+ 192:quantum/audio/audio.c ****         #ifdef BPIN_AUDIO
+ 193:quantum/audio/audio.c ****           BPIN_SET_DIRECTION
+ 194:quantum/audio/audio.c ****           DISABLE_AUDIO_COUNTER_1_ISR;
+ 195:quantum/audio/audio.c ****         #endif
+ 196:quantum/audio/audio.c **** 
+ 197:quantum/audio/audio.c ****         // TCCR3A / TCCR3B: Timer/Counter #3 Control Registers TCCR3A/TCCR3B, TCCR1A/TCCR1B
+ 198:quantum/audio/audio.c ****         // Compare Output Mode (COM3An and COM1An) = 0b00 = Normal port operation
+ 199:quantum/audio/audio.c ****         //   OC3A -- PC6
+ 200:quantum/audio/audio.c ****         //   OC3B -- PC5
+ 201:quantum/audio/audio.c ****         //   OC3C -- PC4
+ 202:quantum/audio/audio.c ****         //   OC1A -- PB5
+ 203:quantum/audio/audio.c ****         //   OC1B -- PB6
+ 204:quantum/audio/audio.c ****         //   OC1C -- PB7
+ 205:quantum/audio/audio.c **** 
+ 206:quantum/audio/audio.c ****         // Waveform Generation Mode (WGM3n) = 0b1110 = Fast PWM Mode 14. Period = ICR3, Duty Cycle 
+ 207:quantum/audio/audio.c ****         //   OCR3A - PC6
+ 208:quantum/audio/audio.c ****         //   OCR3B - PC5
+ 209:quantum/audio/audio.c ****         //   OCR3C - PC4
+ 210:quantum/audio/audio.c ****         //   OCR1A - PB5
+ 211:quantum/audio/audio.c ****         //   OCR1B - PB6
+ 212:quantum/audio/audio.c ****         //   OCR1C - PB7
+ 213:quantum/audio/audio.c **** 
+ 214:quantum/audio/audio.c ****         // Clock Select (CS3n) = 0b010 = Clock / 8
+ 215:quantum/audio/audio.c ****         #ifdef CPIN_AUDIO
+ 216:quantum/audio/audio.c ****             INIT_AUDIO_COUNTER_3
+ 217:quantum/audio/audio.c ****             TCCR3B = (1 << WGM33)  | (1 << WGM32)  | (0 << CS32)  | (1 << CS31) | (0 << CS30);
+ 218:quantum/audio/audio.c ****             TIMER_3_PERIOD = (uint16_t)(((float)F_CPU) / (440 * CPU_PRESCALER));
+ 219:quantum/audio/audio.c ****             TIMER_3_DUTY_CYCLE = (uint16_t)((((float)F_CPU) / (440 * CPU_PRESCALER)) * note_timbre)
+ 220:quantum/audio/audio.c ****         #endif
+ 221:quantum/audio/audio.c ****         #ifdef BPIN_AUDIO
+ 222:quantum/audio/audio.c ****             INIT_AUDIO_COUNTER_1
+ 223:quantum/audio/audio.c ****             TCCR1B = (1 << WGM13)  | (1 << WGM12)  | (0 << CS12)  | (1 << CS11) | (0 << CS10);
+ 224:quantum/audio/audio.c ****             TIMER_1_PERIOD = (uint16_t)(((float)F_CPU) / (440 * CPU_PRESCALER));
+ 225:quantum/audio/audio.c ****             TIMER_1_DUTY_CYCLE = (uint16_t)((((float)F_CPU) / (440 * CPU_PRESCALER)) * note_timbre)
+ 226:quantum/audio/audio.c ****         #endif 
+ 227:quantum/audio/audio.c **** 
+ 228:quantum/audio/audio.c ****         audio_initialized = true;
+ 229:quantum/audio/audio.c ****     }
+ 230:quantum/audio/audio.c **** 
+ 231:quantum/audio/audio.c ****     if (audio_config.enable) {
+ 232:quantum/audio/audio.c ****         PLAY_SONG(startup_song);
+ 233:quantum/audio/audio.c ****     }
+ 234:quantum/audio/audio.c ****     
+ 235:quantum/audio/audio.c **** }
+ 236:quantum/audio/audio.c **** 
+ 237:quantum/audio/audio.c **** void stop_all_notes()
+ 238:quantum/audio/audio.c **** {
+ 239:quantum/audio/audio.c ****     dprintf("audio stop all notes");
+ 240:quantum/audio/audio.c **** 
+ 241:quantum/audio/audio.c ****     if (!audio_initialized) {
+ 242:quantum/audio/audio.c ****         audio_init();
+ 243:quantum/audio/audio.c ****     }
+ 244:quantum/audio/audio.c ****     voices = 0;
+ 245:quantum/audio/audio.c **** 
+ 246:quantum/audio/audio.c ****     #ifdef CPIN_AUDIO
+ 247:quantum/audio/audio.c ****         DISABLE_AUDIO_COUNTER_3_ISR;
+ 248:quantum/audio/audio.c ****         DISABLE_AUDIO_COUNTER_3_OUTPUT;
+ 249:quantum/audio/audio.c ****     #endif
+ 250:quantum/audio/audio.c **** 
+ 251:quantum/audio/audio.c ****     #ifdef BPIN_AUDIO
+ 252:quantum/audio/audio.c ****         DISABLE_AUDIO_COUNTER_1_ISR;
+ 253:quantum/audio/audio.c ****         DISABLE_AUDIO_COUNTER_1_OUTPUT;
+ 254:quantum/audio/audio.c ****     #endif
+ 255:quantum/audio/audio.c **** 
+ 256:quantum/audio/audio.c ****     playing_notes = false;
+ 257:quantum/audio/audio.c ****     playing_note = false;
+ 258:quantum/audio/audio.c ****     frequency = 0;
+ 259:quantum/audio/audio.c ****     frequency_alt = 0;
+ 260:quantum/audio/audio.c ****     volume = 0;
+ 261:quantum/audio/audio.c **** 
+ 262:quantum/audio/audio.c ****     for (uint8_t i = 0; i < 8; i++)
+ 263:quantum/audio/audio.c ****     {
+ 264:quantum/audio/audio.c ****         frequencies[i] = 0;
+ 265:quantum/audio/audio.c ****         volumes[i] = 0;
+ 266:quantum/audio/audio.c ****     }
+ 267:quantum/audio/audio.c **** }
+ 268:quantum/audio/audio.c **** 
+ 269:quantum/audio/audio.c **** void stop_note(float freq)
+ 270:quantum/audio/audio.c **** {
+ 271:quantum/audio/audio.c ****     dprintf("audio stop note freq=%d", (int)freq);
+ 272:quantum/audio/audio.c **** 
+ 273:quantum/audio/audio.c ****     if (playing_note) {
+ 274:quantum/audio/audio.c ****         if (!audio_initialized) {
+ 275:quantum/audio/audio.c ****             audio_init();
+ 276:quantum/audio/audio.c ****         }
+ 277:quantum/audio/audio.c ****         for (int i = 7; i >= 0; i--) {
+ 278:quantum/audio/audio.c ****             if (frequencies[i] == freq) {
+ 279:quantum/audio/audio.c ****                 frequencies[i] = 0;
+ 280:quantum/audio/audio.c ****                 volumes[i] = 0;
+ 281:quantum/audio/audio.c ****                 for (int j = i; (j < 7); j++) {
+ 282:quantum/audio/audio.c ****                     frequencies[j] = frequencies[j+1];
+ 283:quantum/audio/audio.c ****                     frequencies[j+1] = 0;
+ 284:quantum/audio/audio.c ****                     volumes[j] = volumes[j+1];
+ 285:quantum/audio/audio.c ****                     volumes[j+1] = 0;
+ 286:quantum/audio/audio.c ****                 }
+ 287:quantum/audio/audio.c ****                 break;
+ 288:quantum/audio/audio.c ****             }
+ 289:quantum/audio/audio.c ****         }
+ 290:quantum/audio/audio.c ****         voices--;
+ 291:quantum/audio/audio.c ****         if (voices < 0)
+ 292:quantum/audio/audio.c ****             voices = 0;
+ 293:quantum/audio/audio.c ****         if (voice_place >= voices) {
+ 294:quantum/audio/audio.c ****             voice_place = 0;
+ 295:quantum/audio/audio.c ****         }
+ 296:quantum/audio/audio.c ****         if (voices == 0) {
+ 297:quantum/audio/audio.c ****             #ifdef CPIN_AUDIO
+ 298:quantum/audio/audio.c ****                 DISABLE_AUDIO_COUNTER_3_ISR;
+ 299:quantum/audio/audio.c ****                 DISABLE_AUDIO_COUNTER_3_OUTPUT;
+ 300:quantum/audio/audio.c ****             #endif
+ 301:quantum/audio/audio.c ****             #ifdef BPIN_AUDIO
+ 302:quantum/audio/audio.c ****                 DISABLE_AUDIO_COUNTER_1_ISR;
+ 303:quantum/audio/audio.c ****                 DISABLE_AUDIO_COUNTER_1_OUTPUT;
+ 304:quantum/audio/audio.c ****             #endif
+ 305:quantum/audio/audio.c ****             frequency = 0;
+ 306:quantum/audio/audio.c ****             frequency_alt = 0;
+ 307:quantum/audio/audio.c ****             volume = 0;
+ 308:quantum/audio/audio.c ****             playing_note = false;
+ 309:quantum/audio/audio.c ****         }
+ 310:quantum/audio/audio.c ****     }
+ 311:quantum/audio/audio.c **** }
+ 312:quantum/audio/audio.c **** 
+ 313:quantum/audio/audio.c **** #ifdef VIBRATO_ENABLE
+ 314:quantum/audio/audio.c **** 
+ 315:quantum/audio/audio.c **** float mod(float a, int b)
+ 316:quantum/audio/audio.c **** {
+ 317:quantum/audio/audio.c ****     float r = fmod(a, b);
+ 318:quantum/audio/audio.c ****     return r < 0 ? r + b : r;
+ 319:quantum/audio/audio.c **** }
+ 320:quantum/audio/audio.c **** 
+ 321:quantum/audio/audio.c **** float vibrato(float average_freq) {
+ 322:quantum/audio/audio.c ****     #ifdef VIBRATO_STRENGTH_ENABLE
+ 323:quantum/audio/audio.c ****         float vibrated_freq = average_freq * pow(vibrato_lut[(int)vibrato_counter], vibrato_strengt
+ 324:quantum/audio/audio.c ****     #else
+ 325:quantum/audio/audio.c ****         float vibrated_freq = average_freq * vibrato_lut[(int)vibrato_counter];
+ 326:quantum/audio/audio.c ****     #endif
+ 327:quantum/audio/audio.c ****     vibrato_counter = mod((vibrato_counter + vibrato_rate * (1.0 + 440.0/average_freq)), VIBRATO_LU
+ 328:quantum/audio/audio.c ****     return vibrated_freq;
+ 329:quantum/audio/audio.c **** }
+ 330:quantum/audio/audio.c **** 
+ 331:quantum/audio/audio.c **** #endif
+ 332:quantum/audio/audio.c **** 
+ 333:quantum/audio/audio.c **** #ifdef CPIN_AUDIO
+ 334:quantum/audio/audio.c **** ISR(TIMER3_AUDIO_vect)
+ 335:quantum/audio/audio.c **** {
+ 336:quantum/audio/audio.c ****     float freq;
+ 337:quantum/audio/audio.c **** 
+ 338:quantum/audio/audio.c ****     if (playing_note) {
+ 339:quantum/audio/audio.c ****         if (voices > 0) {
+ 340:quantum/audio/audio.c **** 
+ 341:quantum/audio/audio.c ****             #ifdef BPIN_AUDIO
+ 342:quantum/audio/audio.c ****             float freq_alt = 0;
+ 343:quantum/audio/audio.c ****                 if (voices > 1) {
+ 344:quantum/audio/audio.c ****                     if (polyphony_rate == 0) {
+ 345:quantum/audio/audio.c ****                         if (glissando) {
+ 346:quantum/audio/audio.c ****                             if (frequency_alt != 0 && frequency_alt < frequencies[voices - 2] && fr
+ 347:quantum/audio/audio.c ****                                 frequency_alt = frequency_alt * pow(2, 440/frequency_alt/12/2);
+ 348:quantum/audio/audio.c ****                             } else if (frequency_alt != 0 && frequency_alt > frequencies[voices - 2
+ 349:quantum/audio/audio.c ****                                 frequency_alt = frequency_alt * pow(2, -440/frequency_alt/12/2);
+ 350:quantum/audio/audio.c ****                             } else {
+ 351:quantum/audio/audio.c ****                                 frequency_alt = frequencies[voices - 2];
+ 352:quantum/audio/audio.c ****                             }
+ 353:quantum/audio/audio.c ****                         } else {
+ 354:quantum/audio/audio.c ****                             frequency_alt = frequencies[voices - 2];
+ 355:quantum/audio/audio.c ****                         }
+ 356:quantum/audio/audio.c **** 
+ 357:quantum/audio/audio.c ****                         #ifdef VIBRATO_ENABLE
+ 358:quantum/audio/audio.c ****                             if (vibrato_strength > 0) {
+ 359:quantum/audio/audio.c ****                                 freq_alt = vibrato(frequency_alt);
+ 360:quantum/audio/audio.c ****                             } else {
+ 361:quantum/audio/audio.c ****                                 freq_alt = frequency_alt;
+ 362:quantum/audio/audio.c ****                             }
+ 363:quantum/audio/audio.c ****                         #else
+ 364:quantum/audio/audio.c ****                             freq_alt = frequency_alt;
+ 365:quantum/audio/audio.c ****                         #endif
+ 366:quantum/audio/audio.c ****                     }
+ 367:quantum/audio/audio.c **** 
+ 368:quantum/audio/audio.c ****                     if (envelope_index < 65535) {
+ 369:quantum/audio/audio.c ****                         envelope_index++;
+ 370:quantum/audio/audio.c ****                     }
+ 371:quantum/audio/audio.c **** 
+ 372:quantum/audio/audio.c ****                     freq_alt = voice_envelope(freq_alt);
+ 373:quantum/audio/audio.c **** 
+ 374:quantum/audio/audio.c ****                     if (freq_alt < 30.517578125) {
+ 375:quantum/audio/audio.c ****                         freq_alt = 30.52;
+ 376:quantum/audio/audio.c ****                     }
+ 377:quantum/audio/audio.c **** 
+ 378:quantum/audio/audio.c ****                     TIMER_1_PERIOD = (uint16_t)(((float)F_CPU) / (freq_alt * CPU_PRESCALER));
+ 379:quantum/audio/audio.c ****                     TIMER_1_DUTY_CYCLE = (uint16_t)((((float)F_CPU) / (freq_alt * CPU_PRESCALER)) *
+ 380:quantum/audio/audio.c ****                 }
+ 381:quantum/audio/audio.c ****             #endif
+ 382:quantum/audio/audio.c **** 
+ 383:quantum/audio/audio.c ****             if (polyphony_rate > 0) {
+ 384:quantum/audio/audio.c ****                 if (voices > 1) {
+ 385:quantum/audio/audio.c ****                     voice_place %= voices;
+ 386:quantum/audio/audio.c ****                     if (place++ > (frequencies[voice_place] / polyphony_rate / CPU_PRESCALER)) {
+ 387:quantum/audio/audio.c ****                         voice_place = (voice_place + 1) % voices;
+ 388:quantum/audio/audio.c ****                         place = 0.0;
+ 389:quantum/audio/audio.c ****                     }
+ 390:quantum/audio/audio.c ****                 }
+ 391:quantum/audio/audio.c **** 
+ 392:quantum/audio/audio.c ****                 #ifdef VIBRATO_ENABLE
+ 393:quantum/audio/audio.c ****                     if (vibrato_strength > 0) {
+ 394:quantum/audio/audio.c ****                         freq = vibrato(frequencies[voice_place]);
+ 395:quantum/audio/audio.c ****                     } else {
+ 396:quantum/audio/audio.c ****                         freq = frequencies[voice_place];
+ 397:quantum/audio/audio.c ****                     }
+ 398:quantum/audio/audio.c ****                 #else
+ 399:quantum/audio/audio.c ****                     freq = frequencies[voice_place];
+ 400:quantum/audio/audio.c ****                 #endif
+ 401:quantum/audio/audio.c ****             } else {
+ 402:quantum/audio/audio.c ****                 if (glissando) {
+ 403:quantum/audio/audio.c ****                     if (frequency != 0 && frequency < frequencies[voices - 1] && frequency < freque
+ 404:quantum/audio/audio.c ****                         frequency = frequency * pow(2, 440/frequency/12/2);
+ 405:quantum/audio/audio.c ****                     } else if (frequency != 0 && frequency > frequencies[voices - 1] && frequency >
+ 406:quantum/audio/audio.c ****                         frequency = frequency * pow(2, -440/frequency/12/2);
+ 407:quantum/audio/audio.c ****                     } else {
+ 408:quantum/audio/audio.c ****                         frequency = frequencies[voices - 1];
+ 409:quantum/audio/audio.c ****                     }
+ 410:quantum/audio/audio.c ****                 } else {
+ 411:quantum/audio/audio.c ****                     frequency = frequencies[voices - 1];
+ 412:quantum/audio/audio.c ****                 }
+ 413:quantum/audio/audio.c **** 
+ 414:quantum/audio/audio.c ****                 #ifdef VIBRATO_ENABLE
+ 415:quantum/audio/audio.c ****                     if (vibrato_strength > 0) {
+ 416:quantum/audio/audio.c ****                         freq = vibrato(frequency);
+ 417:quantum/audio/audio.c ****                     } else {
+ 418:quantum/audio/audio.c ****                         freq = frequency;
+ 419:quantum/audio/audio.c ****                     }
+ 420:quantum/audio/audio.c ****                 #else
+ 421:quantum/audio/audio.c ****                     freq = frequency;
+ 422:quantum/audio/audio.c ****                 #endif
+ 423:quantum/audio/audio.c ****             }
+ 424:quantum/audio/audio.c **** 
+ 425:quantum/audio/audio.c ****             if (envelope_index < 65535) {
+ 426:quantum/audio/audio.c ****                 envelope_index++;
+ 427:quantum/audio/audio.c ****             }
+ 428:quantum/audio/audio.c **** 
+ 429:quantum/audio/audio.c ****             freq = voice_envelope(freq);
+ 430:quantum/audio/audio.c **** 
+ 431:quantum/audio/audio.c ****             if (freq < 30.517578125) {
+ 432:quantum/audio/audio.c ****                 freq = 30.52;
+ 433:quantum/audio/audio.c ****             }
+ 434:quantum/audio/audio.c **** 
+ 435:quantum/audio/audio.c ****             TIMER_3_PERIOD = (uint16_t)(((float)F_CPU) / (freq * CPU_PRESCALER));
+ 436:quantum/audio/audio.c ****             TIMER_3_DUTY_CYCLE = (uint16_t)((((float)F_CPU) / (freq * CPU_PRESCALER)) * note_timbre
+ 437:quantum/audio/audio.c ****         }
+ 438:quantum/audio/audio.c ****     }
+ 439:quantum/audio/audio.c **** 
+ 440:quantum/audio/audio.c ****     if (playing_notes) {
+ 441:quantum/audio/audio.c ****         if (note_frequency > 0) {
+ 442:quantum/audio/audio.c ****             #ifdef VIBRATO_ENABLE
+ 443:quantum/audio/audio.c ****                 if (vibrato_strength > 0) {
+ 444:quantum/audio/audio.c ****                     freq = vibrato(note_frequency);
+ 445:quantum/audio/audio.c ****                 } else {
+ 446:quantum/audio/audio.c ****                     freq = note_frequency;
+ 447:quantum/audio/audio.c ****                 }
+ 448:quantum/audio/audio.c ****             #else
+ 449:quantum/audio/audio.c ****                     freq = note_frequency;
+ 450:quantum/audio/audio.c ****             #endif
+ 451:quantum/audio/audio.c **** 
+ 452:quantum/audio/audio.c ****             if (envelope_index < 65535) {
+ 453:quantum/audio/audio.c ****                 envelope_index++;
+ 454:quantum/audio/audio.c ****             }
+ 455:quantum/audio/audio.c ****             freq = voice_envelope(freq);
+ 456:quantum/audio/audio.c **** 
+ 457:quantum/audio/audio.c ****             TIMER_3_PERIOD = (uint16_t)(((float)F_CPU) / (freq * CPU_PRESCALER));
+ 458:quantum/audio/audio.c ****             TIMER_3_DUTY_CYCLE = (uint16_t)((((float)F_CPU) / (freq * CPU_PRESCALER)) * note_timbre
+ 459:quantum/audio/audio.c ****         } else {
+ 460:quantum/audio/audio.c ****             TIMER_3_PERIOD = 0;
+ 461:quantum/audio/audio.c ****             TIMER_3_DUTY_CYCLE = 0;
+ 462:quantum/audio/audio.c ****         }
+ 463:quantum/audio/audio.c **** 
+ 464:quantum/audio/audio.c ****         note_position++;
+ 465:quantum/audio/audio.c ****         bool end_of_note = false;
+ 466:quantum/audio/audio.c ****         if (TIMER_3_PERIOD > 0) {
+ 467:quantum/audio/audio.c ****             if (!note_resting) 
+ 468:quantum/audio/audio.c ****                 end_of_note = (note_position >= (note_length / TIMER_3_PERIOD * 0xFFFF - 1));
+ 469:quantum/audio/audio.c ****             else
+ 470:quantum/audio/audio.c ****                 end_of_note = (note_position >= (note_length));
+ 471:quantum/audio/audio.c ****         } else {
+ 472:quantum/audio/audio.c ****             end_of_note = (note_position >= (note_length));
+ 473:quantum/audio/audio.c ****         }
+ 474:quantum/audio/audio.c **** 
+ 475:quantum/audio/audio.c ****         if (end_of_note) {
+ 476:quantum/audio/audio.c ****             current_note++;
+ 477:quantum/audio/audio.c ****             if (current_note >= notes_count) {
+ 478:quantum/audio/audio.c ****                 if (notes_repeat) {
+ 479:quantum/audio/audio.c ****                     current_note = 0;
+ 480:quantum/audio/audio.c ****                 } else {
+ 481:quantum/audio/audio.c ****                     DISABLE_AUDIO_COUNTER_3_ISR;
+ 482:quantum/audio/audio.c ****                     DISABLE_AUDIO_COUNTER_3_OUTPUT;
+ 483:quantum/audio/audio.c ****                     playing_notes = false;
+ 484:quantum/audio/audio.c ****                     return;
+ 485:quantum/audio/audio.c ****                 }
+ 486:quantum/audio/audio.c ****             }
+ 487:quantum/audio/audio.c ****             if (!note_resting) {
+ 488:quantum/audio/audio.c ****                 note_resting = true;
+ 489:quantum/audio/audio.c ****                 current_note--;
+ 490:quantum/audio/audio.c ****                 if ((*notes_pointer)[current_note][0] == (*notes_pointer)[current_note + 1][0]) {
+ 491:quantum/audio/audio.c ****                     note_frequency = 0;
+ 492:quantum/audio/audio.c ****                     note_length = 1;
+ 493:quantum/audio/audio.c ****                 } else {
+ 494:quantum/audio/audio.c ****                     note_frequency = (*notes_pointer)[current_note][0];
+ 495:quantum/audio/audio.c ****                     note_length = 1;
+ 496:quantum/audio/audio.c ****                 }
+ 497:quantum/audio/audio.c ****             } else {
+ 498:quantum/audio/audio.c ****                 note_resting = false;
+ 499:quantum/audio/audio.c ****                 envelope_index = 0;
+ 500:quantum/audio/audio.c ****                 note_frequency = (*notes_pointer)[current_note][0];
+ 501:quantum/audio/audio.c ****                 note_length = ((*notes_pointer)[current_note][1] / 4) * (((float)note_tempo) / 100)
+ 502:quantum/audio/audio.c ****             }
+ 503:quantum/audio/audio.c **** 
+ 504:quantum/audio/audio.c ****             note_position = 0;
+ 505:quantum/audio/audio.c ****         }
+ 506:quantum/audio/audio.c ****     }
+ 507:quantum/audio/audio.c **** 
+ 508:quantum/audio/audio.c ****     if (!audio_config.enable) {
+ 509:quantum/audio/audio.c ****         playing_notes = false;
+ 510:quantum/audio/audio.c ****         playing_note = false;
+ 511:quantum/audio/audio.c ****     }
+ 512:quantum/audio/audio.c **** }
+ 513:quantum/audio/audio.c **** #endif
+ 514:quantum/audio/audio.c **** 
+ 515:quantum/audio/audio.c **** #ifdef BPIN_AUDIO
+ 516:quantum/audio/audio.c **** ISR(TIMER1_AUDIO_vect)
+ 517:quantum/audio/audio.c **** {
+ 518:quantum/audio/audio.c ****     #if defined(BPIN_AUDIO) && !defined(CPIN_AUDIO)
+ 519:quantum/audio/audio.c ****     float freq = 0;
+ 520:quantum/audio/audio.c **** 
+ 521:quantum/audio/audio.c ****     if (playing_note) {
+ 522:quantum/audio/audio.c ****         if (voices > 0) {
+ 523:quantum/audio/audio.c ****             if (polyphony_rate > 0) {
+ 524:quantum/audio/audio.c ****                 if (voices > 1) {
+ 525:quantum/audio/audio.c ****                     voice_place %= voices;
+ 526:quantum/audio/audio.c ****                     if (place++ > (frequencies[voice_place] / polyphony_rate / CPU_PRESCALER)) {
+ 527:quantum/audio/audio.c ****                         voice_place = (voice_place + 1) % voices;
+ 528:quantum/audio/audio.c ****                         place = 0.0;
+ 529:quantum/audio/audio.c ****                     }
+ 530:quantum/audio/audio.c ****                 }
+ 531:quantum/audio/audio.c **** 
+ 532:quantum/audio/audio.c ****                 #ifdef VIBRATO_ENABLE
+ 533:quantum/audio/audio.c ****                     if (vibrato_strength > 0) {
+ 534:quantum/audio/audio.c ****                         freq = vibrato(frequencies[voice_place]);
+ 535:quantum/audio/audio.c ****                     } else {
+ 536:quantum/audio/audio.c ****                         freq = frequencies[voice_place];
+ 537:quantum/audio/audio.c ****                     }
+ 538:quantum/audio/audio.c ****                 #else
+ 539:quantum/audio/audio.c ****                     freq = frequencies[voice_place];
+ 540:quantum/audio/audio.c ****                 #endif
+ 541:quantum/audio/audio.c ****             } else {
+ 542:quantum/audio/audio.c ****                 if (glissando) {
+ 543:quantum/audio/audio.c ****                     if (frequency != 0 && frequency < frequencies[voices - 1] && frequency < freque
+ 544:quantum/audio/audio.c ****                         frequency = frequency * pow(2, 440/frequency/12/2);
+ 545:quantum/audio/audio.c ****                     } else if (frequency != 0 && frequency > frequencies[voices - 1] && frequency >
+ 546:quantum/audio/audio.c ****                         frequency = frequency * pow(2, -440/frequency/12/2);
+ 547:quantum/audio/audio.c ****                     } else {
+ 548:quantum/audio/audio.c ****                         frequency = frequencies[voices - 1];
+ 549:quantum/audio/audio.c ****                     }
+ 550:quantum/audio/audio.c ****                 } else {
+ 551:quantum/audio/audio.c ****                     frequency = frequencies[voices - 1];
+ 552:quantum/audio/audio.c ****                 }
+ 553:quantum/audio/audio.c **** 
+ 554:quantum/audio/audio.c ****                 #ifdef VIBRATO_ENABLE
+ 555:quantum/audio/audio.c ****                     if (vibrato_strength > 0) {
+ 556:quantum/audio/audio.c ****                         freq = vibrato(frequency);
+ 557:quantum/audio/audio.c ****                     } else {
+ 558:quantum/audio/audio.c ****                         freq = frequency;
+ 559:quantum/audio/audio.c ****                     }
+ 560:quantum/audio/audio.c ****                 #else
+ 561:quantum/audio/audio.c ****                     freq = frequency;
+ 562:quantum/audio/audio.c ****                 #endif
+ 563:quantum/audio/audio.c ****             }
+ 564:quantum/audio/audio.c **** 
+ 565:quantum/audio/audio.c ****             if (envelope_index < 65535) {
+ 566:quantum/audio/audio.c ****                 envelope_index++;
+ 567:quantum/audio/audio.c ****             }
+ 568:quantum/audio/audio.c **** 
+ 569:quantum/audio/audio.c ****             freq = voice_envelope(freq);
+ 570:quantum/audio/audio.c **** 
+ 571:quantum/audio/audio.c ****             if (freq < 30.517578125) {
+ 572:quantum/audio/audio.c ****                 freq = 30.52;
+ 573:quantum/audio/audio.c ****             }
+ 574:quantum/audio/audio.c **** 
+ 575:quantum/audio/audio.c ****             TIMER_1_PERIOD = (uint16_t)(((float)F_CPU) / (freq * CPU_PRESCALER));
+ 576:quantum/audio/audio.c ****             TIMER_1_DUTY_CYCLE = (uint16_t)((((float)F_CPU) / (freq * CPU_PRESCALER)) * note_timbre
+ 577:quantum/audio/audio.c ****         }
+ 578:quantum/audio/audio.c ****     }
+ 579:quantum/audio/audio.c **** 
+ 580:quantum/audio/audio.c ****     if (playing_notes) {
+ 581:quantum/audio/audio.c ****         if (note_frequency > 0) {
+ 582:quantum/audio/audio.c ****             #ifdef VIBRATO_ENABLE
+ 583:quantum/audio/audio.c ****                 if (vibrato_strength > 0) {
+ 584:quantum/audio/audio.c ****                     freq = vibrato(note_frequency);
+ 585:quantum/audio/audio.c ****                 } else {
+ 586:quantum/audio/audio.c ****                     freq = note_frequency;
+ 587:quantum/audio/audio.c ****                 }
+ 588:quantum/audio/audio.c ****             #else
+ 589:quantum/audio/audio.c ****                     freq = note_frequency;
+ 590:quantum/audio/audio.c ****             #endif
+ 591:quantum/audio/audio.c **** 
+ 592:quantum/audio/audio.c ****             if (envelope_index < 65535) {
+ 593:quantum/audio/audio.c ****                 envelope_index++;
+ 594:quantum/audio/audio.c ****             }
+ 595:quantum/audio/audio.c ****             freq = voice_envelope(freq);
+ 596:quantum/audio/audio.c **** 
+ 597:quantum/audio/audio.c ****             TIMER_1_PERIOD = (uint16_t)(((float)F_CPU) / (freq * CPU_PRESCALER));
+ 598:quantum/audio/audio.c ****             TIMER_1_DUTY_CYCLE = (uint16_t)((((float)F_CPU) / (freq * CPU_PRESCALER)) * note_timbre
+ 599:quantum/audio/audio.c ****         } else {
+ 600:quantum/audio/audio.c ****             TIMER_1_PERIOD = 0;
+ 601:quantum/audio/audio.c ****             TIMER_1_DUTY_CYCLE = 0;
+ 602:quantum/audio/audio.c ****         }
+ 603:quantum/audio/audio.c **** 
+ 604:quantum/audio/audio.c ****         note_position++;
+ 605:quantum/audio/audio.c ****         bool end_of_note = false;
+ 606:quantum/audio/audio.c ****         if (TIMER_1_PERIOD > 0) {
+ 607:quantum/audio/audio.c ****             if (!note_resting) 
+ 608:quantum/audio/audio.c ****                 end_of_note = (note_position >= (note_length / TIMER_1_PERIOD * 0xFFFF - 1));
+ 609:quantum/audio/audio.c ****             else
+ 610:quantum/audio/audio.c ****                 end_of_note = (note_position >= (note_length));
+ 611:quantum/audio/audio.c ****         } else {
+ 612:quantum/audio/audio.c ****             end_of_note = (note_position >= (note_length));
+ 613:quantum/audio/audio.c ****         }
+ 614:quantum/audio/audio.c **** 
+ 615:quantum/audio/audio.c ****         if (end_of_note) {
+ 616:quantum/audio/audio.c ****             current_note++;
+ 617:quantum/audio/audio.c ****             if (current_note >= notes_count) {
+ 618:quantum/audio/audio.c ****                 if (notes_repeat) {
+ 619:quantum/audio/audio.c ****                     current_note = 0;
+ 620:quantum/audio/audio.c ****                 } else {
+ 621:quantum/audio/audio.c ****                     DISABLE_AUDIO_COUNTER_1_ISR;
+ 622:quantum/audio/audio.c ****                     DISABLE_AUDIO_COUNTER_1_OUTPUT;
+ 623:quantum/audio/audio.c ****                     playing_notes = false;
+ 624:quantum/audio/audio.c ****                     return;
+ 625:quantum/audio/audio.c ****                 }
+ 626:quantum/audio/audio.c ****             }
+ 627:quantum/audio/audio.c ****             if (!note_resting) {
+ 628:quantum/audio/audio.c ****                 note_resting = true;
+ 629:quantum/audio/audio.c ****                 current_note--;
+ 630:quantum/audio/audio.c ****                 if ((*notes_pointer)[current_note][0] == (*notes_pointer)[current_note + 1][0]) {
+ 631:quantum/audio/audio.c ****                     note_frequency = 0;
+ 632:quantum/audio/audio.c ****                     note_length = 1;
+ 633:quantum/audio/audio.c ****                 } else {
+ 634:quantum/audio/audio.c ****                     note_frequency = (*notes_pointer)[current_note][0];
+ 635:quantum/audio/audio.c ****                     note_length = 1;
+ 636:quantum/audio/audio.c ****                 }
+ 637:quantum/audio/audio.c ****             } else {
+ 638:quantum/audio/audio.c ****                 note_resting = false;
+ 639:quantum/audio/audio.c ****                 envelope_index = 0;
+ 640:quantum/audio/audio.c ****                 note_frequency = (*notes_pointer)[current_note][0];
+ 641:quantum/audio/audio.c ****                 note_length = ((*notes_pointer)[current_note][1] / 4) * (((float)note_tempo) / 100)
+ 642:quantum/audio/audio.c ****             }
+ 643:quantum/audio/audio.c **** 
+ 644:quantum/audio/audio.c ****             note_position = 0;
+ 645:quantum/audio/audio.c ****         }
+ 646:quantum/audio/audio.c ****     }
+ 647:quantum/audio/audio.c **** 
+ 648:quantum/audio/audio.c ****     if (!audio_config.enable) {
+ 649:quantum/audio/audio.c ****         playing_notes = false;
+ 650:quantum/audio/audio.c ****         playing_note = false;
+ 651:quantum/audio/audio.c ****     }
+ 652:quantum/audio/audio.c **** #endif
+ 653:quantum/audio/audio.c **** }
+ 654:quantum/audio/audio.c **** #endif
+ 655:quantum/audio/audio.c **** 
+ 656:quantum/audio/audio.c **** void play_note(float freq, int vol) {
+ 657:quantum/audio/audio.c **** 
+ 658:quantum/audio/audio.c ****     dprintf("audio play note freq=%d vol=%d", (int)freq, vol);
+ 659:quantum/audio/audio.c **** 
+ 660:quantum/audio/audio.c ****     if (!audio_initialized) {
+ 661:quantum/audio/audio.c ****         audio_init();
+ 662:quantum/audio/audio.c ****     }
+ 663:quantum/audio/audio.c **** 
+ 664:quantum/audio/audio.c ****     if (audio_config.enable && voices < 8) {
+ 665:quantum/audio/audio.c ****         #ifdef CPIN_AUDIO
+ 666:quantum/audio/audio.c ****             DISABLE_AUDIO_COUNTER_3_ISR;
+ 667:quantum/audio/audio.c ****         #endif
+ 668:quantum/audio/audio.c ****         #ifdef BPIN_AUDIO
+ 669:quantum/audio/audio.c ****             DISABLE_AUDIO_COUNTER_1_ISR;
+ 670:quantum/audio/audio.c ****         #endif
+ 671:quantum/audio/audio.c **** 
+ 672:quantum/audio/audio.c ****         // Cancel notes if notes are playing
+ 673:quantum/audio/audio.c ****         if (playing_notes)
+ 674:quantum/audio/audio.c ****             stop_all_notes();
+ 675:quantum/audio/audio.c **** 
+ 676:quantum/audio/audio.c ****         playing_note = true;
+ 677:quantum/audio/audio.c **** 
+ 678:quantum/audio/audio.c ****         envelope_index = 0;
+ 679:quantum/audio/audio.c **** 
+ 680:quantum/audio/audio.c ****         if (freq > 0) {
+ 681:quantum/audio/audio.c ****             frequencies[voices] = freq;
+ 682:quantum/audio/audio.c ****             volumes[voices] = vol;
+ 683:quantum/audio/audio.c ****             voices++;
+ 684:quantum/audio/audio.c ****         }
+ 685:quantum/audio/audio.c **** 
+ 686:quantum/audio/audio.c ****         #ifdef CPIN_AUDIO
+ 687:quantum/audio/audio.c ****             ENABLE_AUDIO_COUNTER_3_ISR;
+ 688:quantum/audio/audio.c ****             ENABLE_AUDIO_COUNTER_3_OUTPUT;
+ 689:quantum/audio/audio.c ****         #endif
+ 690:quantum/audio/audio.c ****         #ifdef BPIN_AUDIO
+ 691:quantum/audio/audio.c ****             #ifdef CPIN_AUDIO
+ 692:quantum/audio/audio.c ****             if (voices > 1) {
+ 693:quantum/audio/audio.c ****                 ENABLE_AUDIO_COUNTER_1_ISR;
+ 694:quantum/audio/audio.c ****                 ENABLE_AUDIO_COUNTER_1_OUTPUT;
+ 695:quantum/audio/audio.c ****             }
+ 696:quantum/audio/audio.c ****             #else
+ 697:quantum/audio/audio.c ****             ENABLE_AUDIO_COUNTER_1_ISR;
+ 698:quantum/audio/audio.c ****             ENABLE_AUDIO_COUNTER_1_OUTPUT;
+ 699:quantum/audio/audio.c ****             #endif
+ 700:quantum/audio/audio.c ****         #endif
+ 701:quantum/audio/audio.c ****     }
+ 702:quantum/audio/audio.c **** 
+ 703:quantum/audio/audio.c **** }
+ 704:quantum/audio/audio.c **** 
+ 705:quantum/audio/audio.c **** void play_notes(float (*np)[][2], uint16_t n_count, bool n_repeat)
+ 706:quantum/audio/audio.c **** {
+  19               		.loc 1 706 0
+  20               		.cfi_startproc
+  21               	.LVL0:
+  22 0000 CF92      		push r12
+  23               	.LCFI0:
+  24               		.cfi_def_cfa_offset 3
+  25               		.cfi_offset 12, -2
+  26 0002 DF92      		push r13
+  27               	.LCFI1:
+  28               		.cfi_def_cfa_offset 4
+  29               		.cfi_offset 13, -3
+  30 0004 EF92      		push r14
+  31               	.LCFI2:
+  32               		.cfi_def_cfa_offset 5
+  33               		.cfi_offset 14, -4
+  34 0006 FF92      		push r15
+  35               	.LCFI3:
+  36               		.cfi_def_cfa_offset 6
+  37               		.cfi_offset 15, -5
+  38 0008 CF93      		push r28
+  39               	.LCFI4:
+  40               		.cfi_def_cfa_offset 7
+  41               		.cfi_offset 28, -6
+  42 000a DF93      		push r29
+  43               	.LCFI5:
+  44               		.cfi_def_cfa_offset 8
+  45               		.cfi_offset 29, -7
+  46               	/* prologue: function */
+  47               	/* frame size = 0 */
+  48               	/* stack size = 6 */
+  49               	.L__stack_usage = 6
+  50 000c EC01      		movw r28,r24
+  51 000e 6B01      		movw r12,r22
+  52 0010 F42E      		mov r15,r20
+ 707:quantum/audio/audio.c **** 
+ 708:quantum/audio/audio.c ****     if (!audio_initialized) {
+  53               		.loc 1 708 0
+  54 0012 8091 0000 		lds r24,audio_initialized
+  55               	.LVL1:
+  56 0016 8111      		cpse r24,__zero_reg__
+  57 0018 00C0      		rjmp .L2
+ 709:quantum/audio/audio.c ****         audio_init();
+  58               		.loc 1 709 0
+  59 001a 0E94 0000 		call audio_init
+  60               	.LVL2:
+  61               	.L2:
+ 710:quantum/audio/audio.c ****     }
+ 711:quantum/audio/audio.c **** 
+ 712:quantum/audio/audio.c ****     if (audio_config.enable) {
+  62               		.loc 1 712 0
+  63 001e 8091 0000 		lds r24,audio_config
+  64 0022 80FF      		sbrs r24,0
+  65 0024 00C0      		rjmp .L1
+ 713:quantum/audio/audio.c **** 
+ 714:quantum/audio/audio.c ****         #ifdef CPIN_AUDIO
+ 715:quantum/audio/audio.c ****             DISABLE_AUDIO_COUNTER_3_ISR;
+ 716:quantum/audio/audio.c ****         #endif
+ 717:quantum/audio/audio.c ****         #ifdef BPIN_AUDIO
+ 718:quantum/audio/audio.c ****             DISABLE_AUDIO_COUNTER_1_ISR;
+ 719:quantum/audio/audio.c ****         #endif
+ 720:quantum/audio/audio.c **** 
+ 721:quantum/audio/audio.c ****         // Cancel note if a note is playing
+ 722:quantum/audio/audio.c ****         if (playing_note)
+  66               		.loc 1 722 0
+  67 0026 8091 0000 		lds r24,playing_note
+  68 002a 8111      		cpse r24,__zero_reg__
+ 723:quantum/audio/audio.c ****             stop_all_notes();
+  69               		.loc 1 723 0
+  70 002c 0E94 0000 		call stop_all_notes
+  71               	.LVL3:
+  72               	.L4:
+ 724:quantum/audio/audio.c **** 
+ 725:quantum/audio/audio.c ****         playing_notes = true;
+  73               		.loc 1 725 0
+  74 0030 81E0      		ldi r24,lo8(1)
+  75 0032 8093 0000 		sts playing_notes,r24
+ 726:quantum/audio/audio.c **** 
+ 727:quantum/audio/audio.c ****         notes_pointer = np;
+  76               		.loc 1 727 0
+  77 0036 D093 0000 		sts notes_pointer+1,r29
+  78 003a C093 0000 		sts notes_pointer,r28
+ 728:quantum/audio/audio.c ****         notes_count = n_count;
+  79               		.loc 1 728 0
+  80 003e D092 0000 		sts notes_count+1,r13
+  81 0042 C092 0000 		sts notes_count,r12
+ 729:quantum/audio/audio.c ****         notes_repeat = n_repeat;
+  82               		.loc 1 729 0
+  83 0046 F092 0000 		sts notes_repeat,r15
+ 730:quantum/audio/audio.c **** 
+ 731:quantum/audio/audio.c ****         place = 0;
+  84               		.loc 1 731 0
+  85 004a 1092 0000 		sts place,__zero_reg__
+  86 004e 1092 0000 		sts place+1,__zero_reg__
+  87 0052 1092 0000 		sts place+2,__zero_reg__
+  88 0056 1092 0000 		sts place+3,__zero_reg__
+ 732:quantum/audio/audio.c ****         current_note = 0;
+  89               		.loc 1 732 0
+  90 005a 1092 0000 		sts current_note,__zero_reg__
+ 733:quantum/audio/audio.c **** 
+ 734:quantum/audio/audio.c ****         note_frequency = (*notes_pointer)[current_note][0];
+  91               		.loc 1 734 0
+  92 005e 8881      		ld r24,Y
+  93 0060 9981      		ldd r25,Y+1
+  94 0062 AA81      		ldd r26,Y+2
+  95 0064 BB81      		ldd r27,Y+3
+  96 0066 8093 0000 		sts note_frequency,r24
+  97 006a 9093 0000 		sts note_frequency+1,r25
+  98 006e A093 0000 		sts note_frequency+2,r26
+  99 0072 B093 0000 		sts note_frequency+3,r27
+ 735:quantum/audio/audio.c ****         note_length = ((*notes_pointer)[current_note][1] / 4) * (((float)note_tempo) / 100);
+ 100               		.loc 1 735 0
+ 101 0076 20E0      		ldi r18,0
+ 102 0078 30E0      		ldi r19,0
+ 103 007a 40E8      		ldi r20,lo8(-128)
+ 104 007c 5EE3      		ldi r21,lo8(62)
+ 105 007e 6C81      		ldd r22,Y+4
+ 106 0080 7D81      		ldd r23,Y+5
+ 107 0082 8E81      		ldd r24,Y+6
+ 108 0084 9F81      		ldd r25,Y+7
+ 109 0086 0E94 0000 		call __mulsf3
+ 110               	.LVL4:
+ 111 008a 6B01      		movw r12,r22
+ 112 008c 7C01      		movw r14,r24
+ 113               	.LVL5:
+ 114 008e 8091 0000 		lds r24,note_tempo
+ 115 0092 682F      		mov r22,r24
+ 116 0094 70E0      		ldi r23,0
+ 117 0096 80E0      		ldi r24,0
+ 118 0098 90E0      		ldi r25,0
+ 119 009a 0E94 0000 		call __floatunsisf
+ 120               	.LVL6:
+ 121 009e 20E0      		ldi r18,0
+ 122 00a0 30E0      		ldi r19,0
+ 123 00a2 48EC      		ldi r20,lo8(-56)
+ 124 00a4 52E4      		ldi r21,lo8(66)
+ 125 00a6 0E94 0000 		call __divsf3
+ 126               	.LVL7:
+ 127 00aa 9B01      		movw r18,r22
+ 128 00ac AC01      		movw r20,r24
+ 129 00ae C701      		movw r24,r14
+ 130 00b0 B601      		movw r22,r12
+ 131 00b2 0E94 0000 		call __mulsf3
+ 132               	.LVL8:
+ 133 00b6 6093 0000 		sts note_length,r22
+ 134 00ba 7093 0000 		sts note_length+1,r23
+ 135 00be 8093 0000 		sts note_length+2,r24
+ 136 00c2 9093 0000 		sts note_length+3,r25
+ 736:quantum/audio/audio.c ****         note_position = 0;
+ 137               		.loc 1 736 0
+ 138 00c6 1092 0000 		sts note_position+1,__zero_reg__
+ 139 00ca 1092 0000 		sts note_position,__zero_reg__
+ 140               	.L1:
+ 141               	/* epilogue start */
+ 737:quantum/audio/audio.c **** 
+ 738:quantum/audio/audio.c **** 
+ 739:quantum/audio/audio.c ****         #ifdef CPIN_AUDIO
+ 740:quantum/audio/audio.c ****             ENABLE_AUDIO_COUNTER_3_ISR;
+ 741:quantum/audio/audio.c ****             ENABLE_AUDIO_COUNTER_3_OUTPUT;
+ 742:quantum/audio/audio.c ****         #endif
+ 743:quantum/audio/audio.c ****         #ifdef BPIN_AUDIO
+ 744:quantum/audio/audio.c ****             #ifndef CPIN_AUDIO
+ 745:quantum/audio/audio.c ****             ENABLE_AUDIO_COUNTER_1_ISR;
+ 746:quantum/audio/audio.c ****             ENABLE_AUDIO_COUNTER_1_OUTPUT;
+ 747:quantum/audio/audio.c ****             #endif
+ 748:quantum/audio/audio.c ****         #endif
+ 749:quantum/audio/audio.c ****     }
+ 750:quantum/audio/audio.c **** 
+ 751:quantum/audio/audio.c **** }
+ 142               		.loc 1 751 0
+ 143 00ce DF91      		pop r29
+ 144 00d0 CF91      		pop r28
+ 145               	.LVL9:
+ 146 00d2 FF90      		pop r15
+ 147               	.LVL10:
+ 148 00d4 EF90      		pop r14
+ 149 00d6 DF90      		pop r13
+ 150 00d8 CF90      		pop r12
+ 151 00da 0895      		ret
+ 152               		.cfi_endproc
+ 153               	.LFE22:
+ 155               		.section	.text.audio_init,"ax",@progbits
+ 156               	.global	audio_init
+ 158               	audio_init:
+ 159               	.LFB18:
+ 176:quantum/audio/audio.c **** 
+ 160               		.loc 1 176 0
+ 161               		.cfi_startproc
+ 162               	/* prologue: function */
+ 163               	/* frame size = 0 */
+ 164               	/* stack size = 0 */
+ 165               	.L__stack_usage = 0
+ 179:quantum/audio/audio.c ****     {
+ 166               		.loc 1 179 0
+ 167 0000 0E94 0000 		call eeconfig_is_enabled
+ 168               	.LVL11:
+ 169 0004 8111      		cpse r24,__zero_reg__
+ 170 0006 00C0      		rjmp .L13
+ 181:quantum/audio/audio.c ****     }
+ 171               		.loc 1 181 0
+ 172 0008 0E94 0000 		call eeconfig_init
+ 173               	.LVL12:
+ 174               	.L13:
+ 183:quantum/audio/audio.c **** 
+ 175               		.loc 1 183 0
+ 176 000c 0E94 0000 		call eeconfig_read_audio
+ 177               	.LVL13:
+ 178 0010 8093 0000 		sts audio_config,r24
+ 185:quantum/audio/audio.c **** 
+ 179               		.loc 1 185 0
+ 180 0014 8091 0000 		lds r24,audio_initialized
+ 181 0018 8111      		cpse r24,__zero_reg__
+ 182 001a 00C0      		rjmp .L14
+ 228:quantum/audio/audio.c ****     }
+ 183               		.loc 1 228 0
+ 184 001c 81E0      		ldi r24,lo8(1)
+ 185 001e 8093 0000 		sts audio_initialized,r24
+ 186               	.L14:
+ 231:quantum/audio/audio.c ****         PLAY_SONG(startup_song);
+ 187               		.loc 1 231 0
+ 188 0022 8091 0000 		lds r24,audio_config
+ 189 0026 80FF      		sbrs r24,0
+ 190 0028 00C0      		rjmp .L12
+ 232:quantum/audio/audio.c ****     }
+ 191               		.loc 1 232 0
+ 192 002a 40E0      		ldi r20,0
+ 193 002c 63E0      		ldi r22,lo8(3)
+ 194 002e 70E0      		ldi r23,0
+ 195 0030 80E0      		ldi r24,lo8(startup_song)
+ 196 0032 90E0      		ldi r25,hi8(startup_song)
+ 197 0034 0C94 0000 		jmp play_notes
+ 198               	.LVL14:
+ 199               	.L12:
+ 200 0038 0895      		ret
+ 201               		.cfi_endproc
+ 202               	.LFE18:
+ 204               		.section	.text.stop_all_notes,"ax",@progbits
+ 205               	.global	stop_all_notes
+ 207               	stop_all_notes:
+ 208               	.LFB19:
+ 238:quantum/audio/audio.c ****     dprintf("audio stop all notes");
+ 209               		.loc 1 238 0
+ 210               		.cfi_startproc
+ 211               	/* prologue: function */
+ 212               	/* frame size = 0 */
+ 213               	/* stack size = 0 */
+ 214               	.L__stack_usage = 0
+ 239:quantum/audio/audio.c **** 
+ 215               		.loc 1 239 0
+ 216 0000 8091 0000 		lds r24,debug_config
+ 217 0004 80FF      		sbrs r24,0
+ 218 0006 00C0      		rjmp .L17
+ 239:quantum/audio/audio.c **** 
+ 219               		.loc 1 239 0 is_stmt 0 discriminator 1
+ 220 0008 80E0      		ldi r24,lo8(__c.3818)
+ 221 000a 90E0      		ldi r25,hi8(__c.3818)
+ 222 000c 9F93      		push r25
+ 223               	.LCFI6:
+ 224               		.cfi_def_cfa_offset 3
+ 225 000e 8F93      		push r24
+ 226               	.LCFI7:
+ 227               		.cfi_def_cfa_offset 4
+ 228 0010 0E94 0000 		call __xprintf
+ 229               	.LVL15:
+ 230 0014 0F90      		pop __tmp_reg__
+ 231 0016 0F90      		pop __tmp_reg__
+ 232               	.LCFI8:
+ 233               		.cfi_def_cfa_offset 2
+ 234               	.L17:
+ 241:quantum/audio/audio.c ****         audio_init();
+ 235               		.loc 1 241 0 is_stmt 1
+ 236 0018 8091 0000 		lds r24,audio_initialized
+ 237 001c 8111      		cpse r24,__zero_reg__
+ 238 001e 00C0      		rjmp .L18
+ 242:quantum/audio/audio.c ****     }
+ 239               		.loc 1 242 0
+ 240 0020 0E94 0000 		call audio_init
+ 241               	.LVL16:
+ 242               	.L18:
+ 244:quantum/audio/audio.c **** 
+ 243               		.loc 1 244 0
+ 244 0024 1092 0000 		sts voices+1,__zero_reg__
+ 245 0028 1092 0000 		sts voices,__zero_reg__
+ 256:quantum/audio/audio.c ****     playing_note = false;
+ 246               		.loc 1 256 0
+ 247 002c 1092 0000 		sts playing_notes,__zero_reg__
+ 257:quantum/audio/audio.c ****     frequency = 0;
+ 248               		.loc 1 257 0
+ 249 0030 1092 0000 		sts playing_note,__zero_reg__
+ 258:quantum/audio/audio.c ****     frequency_alt = 0;
+ 250               		.loc 1 258 0
+ 251 0034 1092 0000 		sts frequency,__zero_reg__
+ 252 0038 1092 0000 		sts frequency+1,__zero_reg__
+ 253 003c 1092 0000 		sts frequency+2,__zero_reg__
+ 254 0040 1092 0000 		sts frequency+3,__zero_reg__
+ 259:quantum/audio/audio.c ****     volume = 0;
+ 255               		.loc 1 259 0
+ 256 0044 1092 0000 		sts frequency_alt,__zero_reg__
+ 257 0048 1092 0000 		sts frequency_alt+1,__zero_reg__
+ 258 004c 1092 0000 		sts frequency_alt+2,__zero_reg__
+ 259 0050 1092 0000 		sts frequency_alt+3,__zero_reg__
+ 260:quantum/audio/audio.c **** 
+ 260               		.loc 1 260 0
+ 261 0054 1092 0000 		sts volume+1,__zero_reg__
+ 262 0058 1092 0000 		sts volume,__zero_reg__
+ 263               	.LVL17:
+ 264 005c E0E0      		ldi r30,lo8(frequencies)
+ 265 005e F0E0      		ldi r31,hi8(frequencies)
+ 266 0060 A0E0      		ldi r26,lo8(volumes)
+ 267 0062 B0E0      		ldi r27,hi8(volumes)
+ 268               	.LVL18:
+ 269               	.L19:
+ 270               	.LBB4:
+ 264:quantum/audio/audio.c ****         volumes[i] = 0;
+ 271               		.loc 1 264 0 discriminator 3
+ 272 0064 1192      		st Z+,__zero_reg__
+ 273 0066 1192      		st Z+,__zero_reg__
+ 274 0068 1192      		st Z+,__zero_reg__
+ 275 006a 1192      		st Z+,__zero_reg__
+ 265:quantum/audio/audio.c ****     }
+ 276               		.loc 1 265 0 discriminator 3
+ 277 006c 1D92      		st X+,__zero_reg__
+ 278 006e 1D92      		st X+,__zero_reg__
+ 262:quantum/audio/audio.c ****     {
+ 279               		.loc 1 262 0 discriminator 3
+ 280 0070 80E0      		ldi r24,hi8(frequencies+32)
+ 281 0072 E030      		cpi r30,lo8(frequencies+32)
+ 282 0074 F807      		cpc r31,r24
+ 283 0076 01F4      		brne .L19
+ 284               	/* epilogue start */
+ 285               	.LBE4:
+ 267:quantum/audio/audio.c **** 
+ 286               		.loc 1 267 0
+ 287 0078 0895      		ret
+ 288               		.cfi_endproc
+ 289               	.LFE19:
+ 291               	.global	__fixsfsi
+ 292               	.global	__eqsf2
+ 293               		.section	.text.stop_note,"ax",@progbits
+ 294               	.global	stop_note
+ 296               	stop_note:
+ 297               	.LFB20:
+ 270:quantum/audio/audio.c ****     dprintf("audio stop note freq=%d", (int)freq);
+ 298               		.loc 1 270 0
+ 299               		.cfi_startproc
+ 300               	.LVL19:
+ 301 0000 CF92      		push r12
+ 302               	.LCFI9:
+ 303               		.cfi_def_cfa_offset 3
+ 304               		.cfi_offset 12, -2
+ 305 0002 DF92      		push r13
+ 306               	.LCFI10:
+ 307               		.cfi_def_cfa_offset 4
+ 308               		.cfi_offset 13, -3
+ 309 0004 EF92      		push r14
+ 310               	.LCFI11:
+ 311               		.cfi_def_cfa_offset 5
+ 312               		.cfi_offset 14, -4
+ 313 0006 FF92      		push r15
+ 314               	.LCFI12:
+ 315               		.cfi_def_cfa_offset 6
+ 316               		.cfi_offset 15, -5
+ 317 0008 0F93      		push r16
+ 318               	.LCFI13:
+ 319               		.cfi_def_cfa_offset 7
+ 320               		.cfi_offset 16, -6
+ 321 000a 1F93      		push r17
+ 322               	.LCFI14:
+ 323               		.cfi_def_cfa_offset 8
+ 324               		.cfi_offset 17, -7
+ 325 000c CF93      		push r28
+ 326               	.LCFI15:
+ 327               		.cfi_def_cfa_offset 9
+ 328               		.cfi_offset 28, -8
+ 329 000e DF93      		push r29
+ 330               	.LCFI16:
+ 331               		.cfi_def_cfa_offset 10
+ 332               		.cfi_offset 29, -9
+ 333               	/* prologue: function */
+ 334               	/* frame size = 0 */
+ 335               	/* stack size = 8 */
+ 336               	.L__stack_usage = 8
+ 337 0010 6B01      		movw r12,r22
+ 338 0012 7C01      		movw r14,r24
+ 271:quantum/audio/audio.c **** 
+ 339               		.loc 1 271 0
+ 340 0014 8091 0000 		lds r24,debug_config
+ 341 0018 80FF      		sbrs r24,0
+ 342 001a 00C0      		rjmp .L25
+ 271:quantum/audio/audio.c **** 
+ 343               		.loc 1 271 0 is_stmt 0 discriminator 1
+ 344 001c C701      		movw r24,r14
+ 345 001e B601      		movw r22,r12
+ 346               	.LVL20:
+ 347 0020 0E94 0000 		call __fixsfsi
+ 348               	.LVL21:
+ 349 0024 7F93      		push r23
+ 350               	.LCFI17:
+ 351               		.cfi_def_cfa_offset 11
+ 352 0026 6F93      		push r22
+ 353               	.LCFI18:
+ 354               		.cfi_def_cfa_offset 12
+ 355 0028 80E0      		ldi r24,lo8(__c.3827)
+ 356 002a 90E0      		ldi r25,hi8(__c.3827)
+ 357 002c 9F93      		push r25
+ 358               	.LCFI19:
+ 359               		.cfi_def_cfa_offset 13
+ 360 002e 8F93      		push r24
+ 361               	.LCFI20:
+ 362               		.cfi_def_cfa_offset 14
+ 363 0030 0E94 0000 		call __xprintf
+ 364               	.LVL22:
+ 365 0034 0F90      		pop __tmp_reg__
+ 366 0036 0F90      		pop __tmp_reg__
+ 367 0038 0F90      		pop __tmp_reg__
+ 368 003a 0F90      		pop __tmp_reg__
+ 369               	.LCFI21:
+ 370               		.cfi_def_cfa_offset 10
+ 371               	.L25:
+ 273:quantum/audio/audio.c ****         if (!audio_initialized) {
+ 372               		.loc 1 273 0 is_stmt 1
+ 373 003c 8091 0000 		lds r24,playing_note
+ 374 0040 8823      		tst r24
+ 375 0042 01F4      		brne .+2
+ 376 0044 00C0      		rjmp .L24
+ 274:quantum/audio/audio.c ****             audio_init();
+ 377               		.loc 1 274 0
+ 378 0046 8091 0000 		lds r24,audio_initialized
+ 379 004a 8111      		cpse r24,__zero_reg__
+ 380 004c 00C0      		rjmp .L28
+ 275:quantum/audio/audio.c ****         }
+ 381               		.loc 1 275 0
+ 382 004e 0E94 0000 		call audio_init
+ 383               	.LVL23:
+ 384               	.L28:
+ 385 0052 00E0      		ldi r16,lo8(frequencies+32)
+ 386 0054 10E0      		ldi r17,hi8(frequencies+32)
+ 387               	.LBB5:
+ 277:quantum/audio/audio.c ****             if (frequencies[i] == freq) {
+ 388               		.loc 1 277 0
+ 389 0056 C7E0      		ldi r28,lo8(7)
+ 390 0058 D0E0      		ldi r29,0
+ 391               	.LVL24:
+ 392               	.L35:
+ 278:quantum/audio/audio.c ****                 frequencies[i] = 0;
+ 393               		.loc 1 278 0
+ 394 005a A701      		movw r20,r14
+ 395 005c 9601      		movw r18,r12
+ 396 005e F801      		movw r30,r16
+ 397 0060 9291      		ld r25,-Z
+ 398 0062 8291      		ld r24,-Z
+ 399 0064 7291      		ld r23,-Z
+ 400 0066 6291      		ld r22,-Z
+ 401 0068 8F01      		movw r16,r30
+ 402 006a 0E94 0000 		call __eqsf2
+ 403               	.LVL25:
+ 404 006e 8111      		cpse r24,__zero_reg__
+ 405 0070 00C0      		rjmp .L45
+ 279:quantum/audio/audio.c ****                 volumes[i] = 0;
+ 406               		.loc 1 279 0
+ 407 0072 FE01      		movw r30,r28
+ 408 0074 EE0F      		lsl r30
+ 409 0076 FF1F      		rol r31
+ 410 0078 EE0F      		lsl r30
+ 411 007a FF1F      		rol r31
+ 412 007c E050      		subi r30,lo8(-(frequencies))
+ 413 007e F040      		sbci r31,hi8(-(frequencies))
+ 414 0080 1082      		st Z,__zero_reg__
+ 415 0082 1182      		std Z+1,__zero_reg__
+ 416 0084 1282      		std Z+2,__zero_reg__
+ 417 0086 1382      		std Z+3,__zero_reg__
+ 280:quantum/audio/audio.c ****                 for (int j = i; (j < 7); j++) {
+ 418               		.loc 1 280 0
+ 419 0088 DE01      		movw r26,r28
+ 420 008a AA0F      		lsl r26
+ 421 008c BB1F      		rol r27
+ 422 008e A050      		subi r26,lo8(-(volumes))
+ 423 0090 B040      		sbci r27,hi8(-(volumes))
+ 424 0092 1196      		adiw r26,1
+ 425 0094 1C92      		st X,__zero_reg__
+ 426 0096 1E92      		st -X,__zero_reg__
+ 427               	.LVL26:
+ 428               	.L31:
+ 429               	.LBB6:
+ 281:quantum/audio/audio.c ****                     frequencies[j] = frequencies[j+1];
+ 430               		.loc 1 281 0 discriminator 1
+ 431 0098 C730      		cpi r28,7
+ 432 009a D105      		cpc r29,__zero_reg__
+ 433 009c 01F0      		breq .L36
+ 282:quantum/audio/audio.c ****                     frequencies[j+1] = 0;
+ 434               		.loc 1 282 0 discriminator 3
+ 435 009e 2196      		adiw r28,1
+ 436               	.LVL27:
+ 437 00a0 4481      		ldd r20,Z+4
+ 438 00a2 5581      		ldd r21,Z+5
+ 439 00a4 6681      		ldd r22,Z+6
+ 440 00a6 7781      		ldd r23,Z+7
+ 441 00a8 4083      		st Z,r20
+ 442 00aa 5183      		std Z+1,r21
+ 443 00ac 6283      		std Z+2,r22
+ 444 00ae 7383      		std Z+3,r23
+ 283:quantum/audio/audio.c ****                     volumes[j] = volumes[j+1];
+ 445               		.loc 1 283 0 discriminator 3
+ 446 00b0 1482      		std Z+4,__zero_reg__
+ 447 00b2 1582      		std Z+5,__zero_reg__
+ 448 00b4 1682      		std Z+6,__zero_reg__
+ 449 00b6 1782      		std Z+7,__zero_reg__
+ 284:quantum/audio/audio.c ****                     volumes[j+1] = 0;
+ 450               		.loc 1 284 0 discriminator 3
+ 451 00b8 1296      		adiw r26,2
+ 452 00ba 8D91      		ld r24,X+
+ 453 00bc 9C91      		ld r25,X
+ 454 00be 1397      		sbiw r26,2+1
+ 455 00c0 1196      		adiw r26,1
+ 456 00c2 9C93      		st X,r25
+ 457 00c4 8E93      		st -X,r24
+ 285:quantum/audio/audio.c ****                 }
+ 458               		.loc 1 285 0 discriminator 3
+ 459 00c6 1396      		adiw r26,2+1
+ 460 00c8 1C92      		st X,__zero_reg__
+ 461 00ca 1E92      		st -X,__zero_reg__
+ 462 00cc 1297      		sbiw r26,2
+ 463               	.LVL28:
+ 464 00ce 3496      		adiw r30,4
+ 465 00d0 1296      		adiw r26,2
+ 466 00d2 00C0      		rjmp .L31
+ 467               	.LVL29:
+ 468               	.L45:
+ 469               	.LBE6:
+ 277:quantum/audio/audio.c ****             if (frequencies[i] == freq) {
+ 470               		.loc 1 277 0 discriminator 2
+ 471               	.LVL30:
+ 472 00d4 2197      		sbiw r28,1
+ 473 00d6 00F4      		brcc .L35
+ 474               	.L36:
+ 475               	.LBE5:
+ 290:quantum/audio/audio.c ****         if (voices < 0)
+ 476               		.loc 1 290 0
+ 477 00d8 8091 0000 		lds r24,voices
+ 478 00dc 9091 0000 		lds r25,voices+1
+ 479 00e0 0197      		sbiw r24,1
+ 291:quantum/audio/audio.c ****             voices = 0;
+ 480               		.loc 1 291 0
+ 481 00e2 97FD      		sbrc r25,7
+ 482 00e4 00C0      		rjmp .L47
+ 290:quantum/audio/audio.c ****         if (voices < 0)
+ 483               		.loc 1 290 0
+ 484 00e6 9093 0000 		sts voices+1,r25
+ 485 00ea 8093 0000 		sts voices,r24
+ 486 00ee 00C0      		rjmp .L37
+ 487               	.L47:
+ 292:quantum/audio/audio.c ****         if (voice_place >= voices) {
+ 488               		.loc 1 292 0
+ 489 00f0 1092 0000 		sts voices+1,__zero_reg__
+ 490 00f4 1092 0000 		sts voices,__zero_reg__
+ 491               	.L37:
+ 293:quantum/audio/audio.c ****             voice_place = 0;
+ 492               		.loc 1 293 0
+ 493 00f8 8091 0000 		lds r24,voices
+ 494 00fc 9091 0000 		lds r25,voices+1
+ 495 0100 2091 0000 		lds r18,voice_place
+ 496 0104 3091 0000 		lds r19,voice_place+1
+ 497 0108 2817      		cp r18,r24
+ 498 010a 3907      		cpc r19,r25
+ 499 010c 04F0      		brlt .L38
+ 294:quantum/audio/audio.c ****         }
+ 500               		.loc 1 294 0
+ 501 010e 1092 0000 		sts voice_place+1,__zero_reg__
+ 502 0112 1092 0000 		sts voice_place,__zero_reg__
+ 503               	.L38:
+ 296:quantum/audio/audio.c ****             #ifdef CPIN_AUDIO
+ 504               		.loc 1 296 0
+ 505 0116 892B      		or r24,r25
+ 506 0118 01F4      		brne .L24
+ 305:quantum/audio/audio.c ****             frequency_alt = 0;
+ 507               		.loc 1 305 0
+ 508 011a 1092 0000 		sts frequency,__zero_reg__
+ 509 011e 1092 0000 		sts frequency+1,__zero_reg__
+ 510 0122 1092 0000 		sts frequency+2,__zero_reg__
+ 511 0126 1092 0000 		sts frequency+3,__zero_reg__
+ 306:quantum/audio/audio.c ****             volume = 0;
+ 512               		.loc 1 306 0
+ 513 012a 1092 0000 		sts frequency_alt,__zero_reg__
+ 514 012e 1092 0000 		sts frequency_alt+1,__zero_reg__
+ 515 0132 1092 0000 		sts frequency_alt+2,__zero_reg__
+ 516 0136 1092 0000 		sts frequency_alt+3,__zero_reg__
+ 307:quantum/audio/audio.c ****             playing_note = false;
+ 517               		.loc 1 307 0
+ 518 013a 1092 0000 		sts volume+1,__zero_reg__
+ 519 013e 1092 0000 		sts volume,__zero_reg__
+ 308:quantum/audio/audio.c ****         }
+ 520               		.loc 1 308 0
+ 521 0142 1092 0000 		sts playing_note,__zero_reg__
+ 522               	.L24:
+ 523               	/* epilogue start */
+ 311:quantum/audio/audio.c **** 
+ 524               		.loc 1 311 0
+ 525 0146 DF91      		pop r29
+ 526 0148 CF91      		pop r28
+ 527 014a 1F91      		pop r17
+ 528 014c 0F91      		pop r16
+ 529 014e FF90      		pop r15
+ 530 0150 EF90      		pop r14
+ 531 0152 DF90      		pop r13
+ 532 0154 CF90      		pop r12
+ 533               	.LVL31:
+ 534 0156 0895      		ret
+ 535               		.cfi_endproc
+ 536               	.LFE20:
+ 538               	.global	__gtsf2
+ 539               		.section	.text.play_note,"ax",@progbits
+ 540               	.global	play_note
+ 542               	play_note:
+ 543               	.LFB21:
+ 656:quantum/audio/audio.c **** 
+ 544               		.loc 1 656 0
+ 545               		.cfi_startproc
+ 546               	.LVL32:
+ 547 0000 CF92      		push r12
+ 548               	.LCFI22:
+ 549               		.cfi_def_cfa_offset 3
+ 550               		.cfi_offset 12, -2
+ 551 0002 DF92      		push r13
+ 552               	.LCFI23:
+ 553               		.cfi_def_cfa_offset 4
+ 554               		.cfi_offset 13, -3
+ 555 0004 EF92      		push r14
+ 556               	.LCFI24:
+ 557               		.cfi_def_cfa_offset 5
+ 558               		.cfi_offset 14, -4
+ 559 0006 FF92      		push r15
+ 560               	.LCFI25:
+ 561               		.cfi_def_cfa_offset 6
+ 562               		.cfi_offset 15, -5
+ 563 0008 CF93      		push r28
+ 564               	.LCFI26:
+ 565               		.cfi_def_cfa_offset 7
+ 566               		.cfi_offset 28, -6
+ 567 000a DF93      		push r29
+ 568               	.LCFI27:
+ 569               		.cfi_def_cfa_offset 8
+ 570               		.cfi_offset 29, -7
+ 571               	/* prologue: function */
+ 572               	/* frame size = 0 */
+ 573               	/* stack size = 6 */
+ 574               	.L__stack_usage = 6
+ 575 000c 6B01      		movw r12,r22
+ 576 000e 7C01      		movw r14,r24
+ 577 0010 D42F      		mov r29,r20
+ 578 0012 C52F      		mov r28,r21
+ 658:quantum/audio/audio.c **** 
+ 579               		.loc 1 658 0
+ 580 0014 8091 0000 		lds r24,debug_config
+ 581 0018 80FF      		sbrs r24,0
+ 582 001a 00C0      		rjmp .L49
+ 658:quantum/audio/audio.c **** 
+ 583               		.loc 1 658 0 is_stmt 0 discriminator 1
+ 584 001c 5F93      		push r21
+ 585               	.LCFI28:
+ 586               		.cfi_def_cfa_offset 9
+ 587 001e 4F93      		push r20
+ 588               	.LCFI29:
+ 589               		.cfi_def_cfa_offset 10
+ 590 0020 C701      		movw r24,r14
+ 591 0022 B601      		movw r22,r12
+ 592               	.LVL33:
+ 593 0024 0E94 0000 		call __fixsfsi
+ 594               	.LVL34:
+ 595 0028 7F93      		push r23
+ 596               	.LCFI30:
+ 597               		.cfi_def_cfa_offset 11
+ 598 002a 6F93      		push r22
+ 599               	.LCFI31:
+ 600               		.cfi_def_cfa_offset 12
+ 601 002c 80E0      		ldi r24,lo8(__c.3841)
+ 602 002e 90E0      		ldi r25,hi8(__c.3841)
+ 603 0030 9F93      		push r25
+ 604               	.LCFI32:
+ 605               		.cfi_def_cfa_offset 13
+ 606 0032 8F93      		push r24
+ 607               	.LCFI33:
+ 608               		.cfi_def_cfa_offset 14
+ 609 0034 0E94 0000 		call __xprintf
+ 610               	.LVL35:
+ 611 0038 0F90      		pop __tmp_reg__
+ 612 003a 0F90      		pop __tmp_reg__
+ 613 003c 0F90      		pop __tmp_reg__
+ 614 003e 0F90      		pop __tmp_reg__
+ 615 0040 0F90      		pop __tmp_reg__
+ 616 0042 0F90      		pop __tmp_reg__
+ 617               	.LCFI34:
+ 618               		.cfi_def_cfa_offset 8
+ 619               	.L49:
+ 660:quantum/audio/audio.c ****         audio_init();
+ 620               		.loc 1 660 0 is_stmt 1
+ 621 0044 8091 0000 		lds r24,audio_initialized
+ 622 0048 8111      		cpse r24,__zero_reg__
+ 623 004a 00C0      		rjmp .L50
+ 661:quantum/audio/audio.c ****     }
+ 624               		.loc 1 661 0
+ 625 004c 0E94 0000 		call audio_init
+ 626               	.LVL36:
+ 627               	.L50:
+ 664:quantum/audio/audio.c ****         #ifdef CPIN_AUDIO
+ 628               		.loc 1 664 0
+ 629 0050 8091 0000 		lds r24,audio_config
+ 630 0054 80FF      		sbrs r24,0
+ 631 0056 00C0      		rjmp .L48
+ 664:quantum/audio/audio.c ****         #ifdef CPIN_AUDIO
+ 632               		.loc 1 664 0 is_stmt 0 discriminator 1
+ 633 0058 8091 0000 		lds r24,voices
+ 634 005c 9091 0000 		lds r25,voices+1
+ 635 0060 0897      		sbiw r24,8
+ 636 0062 04F4      		brge .L48
+ 673:quantum/audio/audio.c ****             stop_all_notes();
+ 637               		.loc 1 673 0 is_stmt 1
+ 638 0064 8091 0000 		lds r24,playing_notes
+ 639 0068 8111      		cpse r24,__zero_reg__
+ 674:quantum/audio/audio.c **** 
+ 640               		.loc 1 674 0
+ 641 006a 0E94 0000 		call stop_all_notes
+ 642               	.LVL37:
+ 643               	.L54:
+ 676:quantum/audio/audio.c **** 
+ 644               		.loc 1 676 0
+ 645 006e 81E0      		ldi r24,lo8(1)
+ 646 0070 8093 0000 		sts playing_note,r24
+ 678:quantum/audio/audio.c **** 
+ 647               		.loc 1 678 0
+ 648 0074 1092 0000 		sts envelope_index+1,__zero_reg__
+ 649 0078 1092 0000 		sts envelope_index,__zero_reg__
+ 680:quantum/audio/audio.c ****             frequencies[voices] = freq;
+ 650               		.loc 1 680 0
+ 651 007c 20E0      		ldi r18,0
+ 652 007e 30E0      		ldi r19,0
+ 653 0080 A901      		movw r20,r18
+ 654 0082 C701      		movw r24,r14
+ 655 0084 B601      		movw r22,r12
+ 656 0086 0E94 0000 		call __gtsf2
+ 657               	.LVL38:
+ 658 008a 1816      		cp __zero_reg__,r24
+ 659 008c 04F4      		brge .L48
+ 681:quantum/audio/audio.c ****             volumes[voices] = vol;
+ 660               		.loc 1 681 0
+ 661 008e 8091 0000 		lds r24,voices
+ 662 0092 9091 0000 		lds r25,voices+1
+ 663 0096 FC01      		movw r30,r24
+ 664 0098 EE0F      		lsl r30
+ 665 009a FF1F      		rol r31
+ 666 009c EE0F      		lsl r30
+ 667 009e FF1F      		rol r31
+ 668 00a0 E050      		subi r30,lo8(-(frequencies))
+ 669 00a2 F040      		sbci r31,hi8(-(frequencies))
+ 670 00a4 C082      		st Z,r12
+ 671 00a6 D182      		std Z+1,r13
+ 672 00a8 E282      		std Z+2,r14
+ 673 00aa F382      		std Z+3,r15
+ 682:quantum/audio/audio.c ****             voices++;
+ 674               		.loc 1 682 0
+ 675 00ac FC01      		movw r30,r24
+ 676 00ae EE0F      		lsl r30
+ 677 00b0 FF1F      		rol r31
+ 678 00b2 E050      		subi r30,lo8(-(volumes))
+ 679 00b4 F040      		sbci r31,hi8(-(volumes))
+ 680 00b6 D083      		st Z,r29
+ 681 00b8 C183      		std Z+1,r28
+ 683:quantum/audio/audio.c ****         }
+ 682               		.loc 1 683 0
+ 683 00ba 0196      		adiw r24,1
+ 684 00bc 9093 0000 		sts voices+1,r25
+ 685 00c0 8093 0000 		sts voices,r24
+ 686               	.L48:
+ 687               	/* epilogue start */
+ 703:quantum/audio/audio.c **** 
+ 688               		.loc 1 703 0
+ 689 00c4 DF91      		pop r29
+ 690 00c6 CF91      		pop r28
+ 691 00c8 FF90      		pop r15
+ 692 00ca EF90      		pop r14
+ 693 00cc DF90      		pop r13
+ 694 00ce CF90      		pop r12
+ 695               	.LVL39:
+ 696 00d0 0895      		ret
+ 697               		.cfi_endproc
+ 698               	.LFE21:
+ 700               		.section	.text.is_playing_notes,"ax",@progbits
+ 701               	.global	is_playing_notes
+ 703               	is_playing_notes:
+ 704               	.LFB23:
+ 752:quantum/audio/audio.c **** 
+ 753:quantum/audio/audio.c **** bool is_playing_notes(void) {
+ 705               		.loc 1 753 0
+ 706               		.cfi_startproc
+ 707               	/* prologue: function */
+ 708               	/* frame size = 0 */
+ 709               	/* stack size = 0 */
+ 710               	.L__stack_usage = 0
+ 754:quantum/audio/audio.c ****     return playing_notes;
+ 755:quantum/audio/audio.c **** }
+ 711               		.loc 1 755 0
+ 712 0000 8091 0000 		lds r24,playing_notes
+ 713 0004 0895      		ret
+ 714               		.cfi_endproc
+ 715               	.LFE23:
+ 717               		.section	.text.is_audio_on,"ax",@progbits
+ 718               	.global	is_audio_on
+ 720               	is_audio_on:
+ 721               	.LFB24:
+ 756:quantum/audio/audio.c **** 
+ 757:quantum/audio/audio.c **** bool is_audio_on(void) {
+ 722               		.loc 1 757 0
+ 723               		.cfi_startproc
+ 724               	/* prologue: function */
+ 725               	/* frame size = 0 */
+ 726               	/* stack size = 0 */
+ 727               	.L__stack_usage = 0
+ 758:quantum/audio/audio.c ****     return (audio_config.enable != 0);
+ 728               		.loc 1 758 0
+ 729 0000 8091 0000 		lds r24,audio_config
+ 759:quantum/audio/audio.c **** }
+ 730               		.loc 1 759 0
+ 731 0004 8170      		andi r24,lo8(1)
+ 732 0006 0895      		ret
+ 733               		.cfi_endproc
+ 734               	.LFE24:
+ 736               		.section	.text.audio_toggle,"ax",@progbits
+ 737               	.global	audio_toggle
+ 739               	audio_toggle:
+ 740               	.LFB25:
+ 760:quantum/audio/audio.c **** 
+ 761:quantum/audio/audio.c **** void audio_toggle(void) {
+ 741               		.loc 1 761 0
+ 742               		.cfi_startproc
+ 743               	/* prologue: function */
+ 744               	/* frame size = 0 */
+ 745               	/* stack size = 0 */
+ 746               	.L__stack_usage = 0
+ 762:quantum/audio/audio.c ****     audio_config.enable ^= 1;
+ 747               		.loc 1 762 0
+ 748 0000 8091 0000 		lds r24,audio_config
+ 749 0004 982F      		mov r25,r24
+ 750 0006 9095      		com r25
+ 751 0008 90FB      		bst r25,0
+ 752 000a 80F9      		bld r24,0
+ 753 000c 8093 0000 		sts audio_config,r24
+ 763:quantum/audio/audio.c ****     eeconfig_update_audio(audio_config.raw);
+ 754               		.loc 1 763 0
+ 755 0010 0E94 0000 		call eeconfig_update_audio
+ 756               	.LVL40:
+ 764:quantum/audio/audio.c ****     if (audio_config.enable)
+ 757               		.loc 1 764 0
+ 758 0014 8091 0000 		lds r24,audio_config
+ 759 0018 80FD      		sbrc r24,0
+ 765:quantum/audio/audio.c ****         audio_on_user();
+ 760               		.loc 1 765 0
+ 761 001a 0C94 0000 		jmp audio_on_user
+ 762               	.LVL41:
+ 763               	.L65:
+ 764 001e 0895      		ret
+ 765               		.cfi_endproc
+ 766               	.LFE25:
+ 768               		.section	.text.audio_on,"ax",@progbits
+ 769               	.global	audio_on
+ 771               	audio_on:
+ 772               	.LFB26:
+ 766:quantum/audio/audio.c **** }
+ 767:quantum/audio/audio.c **** 
+ 768:quantum/audio/audio.c **** void audio_on(void) {
+ 773               		.loc 1 768 0
+ 774               		.cfi_startproc
+ 775               	/* prologue: function */
+ 776               	/* frame size = 0 */
+ 777               	/* stack size = 0 */
+ 778               	.L__stack_usage = 0
+ 769:quantum/audio/audio.c ****     audio_config.enable = 1;
+ 779               		.loc 1 769 0
+ 780 0000 8091 0000 		lds r24,audio_config
+ 781 0004 8160      		ori r24,lo8(1<<0)
+ 782 0006 8093 0000 		sts audio_config,r24
+ 770:quantum/audio/audio.c ****     eeconfig_update_audio(audio_config.raw);
+ 783               		.loc 1 770 0
+ 784 000a 0E94 0000 		call eeconfig_update_audio
+ 785               	.LVL42:
+ 771:quantum/audio/audio.c ****     audio_on_user();
+ 786               		.loc 1 771 0
+ 787 000e 0E94 0000 		call audio_on_user
+ 788               	.LVL43:
+ 772:quantum/audio/audio.c ****     PLAY_SONG(audio_on_song);
+ 789               		.loc 1 772 0
+ 790 0012 40E0      		ldi r20,0
+ 791 0014 62E0      		ldi r22,lo8(2)
+ 792 0016 70E0      		ldi r23,0
+ 793 0018 80E0      		ldi r24,lo8(audio_on_song)
+ 794 001a 90E0      		ldi r25,hi8(audio_on_song)
+ 795 001c 0C94 0000 		jmp play_notes
+ 796               	.LVL44:
+ 797               		.cfi_endproc
+ 798               	.LFE26:
+ 800               		.section	.text.audio_off,"ax",@progbits
+ 801               	.global	audio_off
+ 803               	audio_off:
+ 804               	.LFB27:
+ 773:quantum/audio/audio.c **** }
+ 774:quantum/audio/audio.c **** 
+ 775:quantum/audio/audio.c **** void audio_off(void) {
+ 805               		.loc 1 775 0
+ 806               		.cfi_startproc
+ 807               	/* prologue: function */
+ 808               	/* frame size = 0 */
+ 809               	/* stack size = 0 */
+ 810               	.L__stack_usage = 0
+ 776:quantum/audio/audio.c ****     PLAY_SONG(audio_off_song);
+ 811               		.loc 1 776 0
+ 812 0000 40E0      		ldi r20,0
+ 813 0002 62E0      		ldi r22,lo8(2)
+ 814 0004 70E0      		ldi r23,0
+ 815 0006 80E0      		ldi r24,lo8(audio_off_song)
+ 816 0008 90E0      		ldi r25,hi8(audio_off_song)
+ 817 000a 0E94 0000 		call play_notes
+ 818               	.LVL45:
+ 819               	.LBB7:
+ 820               	.LBB8:
+ 821               		.file 2 "c:\\msys64\\home\\cris almanza\\qmk_utils\\avr8-gnu-toolchain\\avr\\include\\util\\delay.
+   1:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** /* Copyright (c) 2002, Marek Michalkiewicz
+   2:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    Copyright (c) 2004,2005,2007 Joerg Wunsch
+   3:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    Copyright (c) 2007  Florin-Viorel Petrov
+   4:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    All rights reserved.
+   5:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+   6:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    Redistribution and use in source and binary forms, with or without
+   7:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    modification, are permitted provided that the following conditions are met:
+   8:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+   9:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    * Redistributions of source code must retain the above copyright
+  10:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****      notice, this list of conditions and the following disclaimer.
+  11:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  12:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    * Redistributions in binary form must reproduce the above copyright
+  13:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****      notice, this list of conditions and the following disclaimer in
+  14:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****      the documentation and/or other materials provided with the
+  15:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****      distribution.
+  16:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  17:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    * Neither the name of the copyright holders nor the names of
+  18:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****      contributors may be used to endorse or promote products derived
+  19:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****      from this software without specific prior written permission.
+  20:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  21:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  22:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  23:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  24:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  25:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  26:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  27:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  28:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  29:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  30:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  31:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   POSSIBILITY OF SUCH DAMAGE. */
+  32:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  33:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** /* $Id$ */
+  34:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  35:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #ifndef _UTIL_DELAY_H_
+  36:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #define _UTIL_DELAY_H_ 1
+  37:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  38:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #ifndef __DOXYGEN__
+  39:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #  ifndef __HAS_DELAY_CYCLES
+  40:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #    define __HAS_DELAY_CYCLES 1
+  41:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #  endif
+  42:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #endif  /* __DOXYGEN__ */
+  43:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  44:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #include <inttypes.h>
+  45:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #include <util/delay_basic.h>
+  46:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #include <math.h>
+  47:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  48:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** /** \file */
+  49:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** /** \defgroup util_delay <util/delay.h>: Convenience functions for busy-wait delay loops
+  50:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     \code
+  51:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     #define F_CPU 1000000UL  // 1 MHz
+  52:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     //#define F_CPU 14.7456E6
+  53:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     #include <util/delay.h>
+  54:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     \endcode
+  55:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  56:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     \note As an alternative method, it is possible to pass the
+  57:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     F_CPU macro down to the compiler from the Makefile.
+  58:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     Obviously, in that case, no \c \#define statement should be
+  59:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     used.
+  60:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  61:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     The functions in this header file are wrappers around the basic
+  62:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     busy-wait functions from <util/delay_basic.h>.  They are meant as
+  63:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     convenience functions where actual time values can be specified
+  64:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     rather than a number of cycles to wait for.  The idea behind is
+  65:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     that compile-time constant expressions will be eliminated by
+  66:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     compiler optimization so floating-point expressions can be used
+  67:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     to calculate the number of delay cycles needed based on the CPU
+  68:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     frequency passed by the macro F_CPU.
+  69:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  70:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     \note In order for these functions to work as intended, compiler
+  71:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     optimizations <em>must</em> be enabled, and the delay time
+  72:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     <em>must</em> be an expression that is a known constant at
+  73:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     compile-time.  If these requirements are not met, the resulting
+  74:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     delay will be much longer (and basically unpredictable), and
+  75:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     applications that otherwise do not use floating-point calculations
+  76:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     will experience severe code bloat by the floating-point library
+  77:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     routines linked into the application.
+  78:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  79:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     The functions available allow the specification of microsecond, and
+  80:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     millisecond delays directly, using the application-supplied macro
+  81:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     F_CPU as the CPU clock frequency (in Hertz).
+  82:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  83:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** */
+  84:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  85:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #if !defined(__DOXYGEN__)
+  86:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** static __inline__ void _delay_us(double __us) __attribute__((__always_inline__));
+  87:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** static __inline__ void _delay_ms(double __ms) __attribute__((__always_inline__));
+  88:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #endif
+  89:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  90:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #ifndef F_CPU
+  91:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** /* prevent compiler error by supplying a default */
+  92:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** # warning "F_CPU not defined for <util/delay.h>"
+  93:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** /** \ingroup util_delay
+  94:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     \def F_CPU
+  95:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     \brief CPU frequency in Hz
+  96:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+  97:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     The macro F_CPU specifies the CPU frequency to be considered by
+  98:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     the delay macros.  This macro is normally supplied by the
+  99:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     environment (e.g. from within a project header, or the project's
+ 100:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     Makefile).  The value 1 MHz here is only provided as a "vanilla"
+ 101:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     fallback if no such user-provided definition could be found.
+ 102:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 103:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     In terms of the delay functions, the CPU frequency can be given as
+ 104:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     a floating-point constant (e.g. 3.6864E6 for 3.6864 MHz).
+ 105:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     However, the macros in <util/setbaud.h> require it to be an
+ 106:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****     integer value.
+ 107:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****  */
+ 108:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** # define F_CPU 1000000UL
+ 109:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #endif
+ 110:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 111:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #ifndef __OPTIMIZE__
+ 112:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** # warning "Compiler optimizations disabled; functions from <util/delay.h> won't work as designed"
+ 113:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #endif
+ 114:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 115:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #if __HAS_DELAY_CYCLES && defined(__OPTIMIZE__) && \
+ 116:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   !defined(__DELAY_BACKWARD_COMPATIBLE__) &&	   \
+ 117:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   __STDC_HOSTED__
+ 118:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #  include <math.h>
+ 119:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #endif
+ 120:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 121:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** /**
+ 122:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    \ingroup util_delay
+ 123:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 124:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    Perform a delay of \c __ms milliseconds, using _delay_loop_2().
+ 125:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 126:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    The macro F_CPU is supposed to be defined to a
+ 127:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    constant defining the CPU clock frequency (in Hertz).
+ 128:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 129:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    The maximal possible delay is 262.14 ms / F_CPU in MHz.
+ 130:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 131:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    When the user request delay which exceed the maximum possible one,
+ 132:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    _delay_ms() provides a decreased resolution functionality. In this
+ 133:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    mode _delay_ms() will work with a resolution of 1/10 ms, providing
+ 134:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    delays up to 6.5535 seconds (independent from CPU frequency).  The
+ 135:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    user will not be informed about decreased resolution.
+ 136:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 137:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    If the avr-gcc toolchain has __builtin_avr_delay_cycles()
+ 138:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    support, maximal possible delay is 4294967.295 ms/ F_CPU in MHz. For
+ 139:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    values greater than the maximal possible delay, overflows results in
+ 140:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    no delay i.e., 0ms.
+ 141:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 142:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    Conversion of \c __ms into clock cycles may not always result in
+ 143:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    integer.  By default, the clock cycles rounded up to next
+ 144:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    integer. This ensures that the user gets at least \c __ms
+ 145:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    microseconds of delay.
+ 146:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 147:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    Alternatively, by defining the macro \c __DELAY_ROUND_DOWN__, or
+ 148:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    \c __DELAY_ROUND_CLOSEST__, before including this header file, the
+ 149:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    algorithm can be made to round down, or round to closest integer,
+ 150:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    respectively.
+ 151:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 152:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    \note
+ 153:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 154:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    The implementation of _delay_ms() based on
+ 155:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    __builtin_avr_delay_cycles() is not backward compatible with older
+ 156:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    implementations.  In order to get functionality backward compatible
+ 157:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    with previous versions, the macro \c "__DELAY_BACKWARD_COMPATIBLE__"
+ 158:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    must be defined before including this header file. Also, the
+ 159:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    backward compatible algorithm will be chosen if the code is
+ 160:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    compiled in a <em>freestanding environment</em> (GCC option
+ 161:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    \c -ffreestanding), as the math functions required for rounding are
+ 162:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****    not available to the compiler then.
+ 163:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 164:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****  */
+ 165:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** void
+ 166:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** _delay_ms(double __ms)
+ 167:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** {
+ 168:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 	double __tmp ;
+ 169:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** #if __HAS_DELAY_CYCLES && defined(__OPTIMIZE__) && \
+ 170:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   !defined(__DELAY_BACKWARD_COMPATIBLE__) &&	   \
+ 171:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h ****   __STDC_HOSTED__
+ 172:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 	uint32_t __ticks_dc;
+ 173:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 	extern void __builtin_avr_delay_cycles(unsigned long);
+ 174:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 	__tmp = ((F_CPU) / 1e3) * __ms;
+ 175:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 176:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 	#if defined(__DELAY_ROUND_DOWN__)
+ 177:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 		__ticks_dc = (uint32_t)fabs(__tmp);
+ 178:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 179:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 	#elif defined(__DELAY_ROUND_CLOSEST__)
+ 180:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 		__ticks_dc = (uint32_t)(fabs(__tmp)+0.5);
+ 181:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 182:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 	#else
+ 183:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 		//round up by default
+ 184:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 		__ticks_dc = (uint32_t)(ceil(fabs(__tmp)));
+ 185:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 	#endif
+ 186:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 
+ 187:c:\msys64\home\cris almanza\qmk_utils\avr8-gnu-toolchain\avr\include\util\delay.h **** 	__builtin_avr_delay_cycles(__ticks_dc);
+ 822               		.loc 2 187 0
+ 823 000e 2FEF      		ldi r18,lo8(319999)
+ 824 0010 81EE      		ldi r24,hi8(319999)
+ 825 0012 94E0      		ldi r25,hlo8(319999)
+ 826 0014 2150      	1:	subi r18,1
+ 827 0016 8040      		sbci r24,0
+ 828 0018 9040      		sbci r25,0
+ 829 001a 01F4      		brne 1b
+ 830 001c 00C0      		rjmp .
+ 831 001e 0000      		nop
+ 832               	.LBE8:
+ 833               	.LBE7:
+ 777:quantum/audio/audio.c ****     wait_ms(100);
+ 778:quantum/audio/audio.c ****     stop_all_notes();
+ 834               		.loc 1 778 0
+ 835 0020 0E94 0000 		call stop_all_notes
+ 836               	.LVL46:
+ 779:quantum/audio/audio.c ****     audio_config.enable = 0;
+ 837               		.loc 1 779 0
+ 838 0024 8091 0000 		lds r24,audio_config
+ 839 0028 8E7F      		andi r24,lo8(~(1<<0))
+ 840 002a 8093 0000 		sts audio_config,r24
+ 780:quantum/audio/audio.c ****     eeconfig_update_audio(audio_config.raw);
+ 841               		.loc 1 780 0
+ 842 002e 0C94 0000 		jmp eeconfig_update_audio
+ 843               	.LVL47:
+ 844               		.cfi_endproc
+ 845               	.LFE27:
+ 847               		.section	.text.set_polyphony_rate,"ax",@progbits
+ 848               	.global	set_polyphony_rate
+ 850               	set_polyphony_rate:
+ 851               	.LFB28:
+ 781:quantum/audio/audio.c **** }
+ 782:quantum/audio/audio.c **** 
+ 783:quantum/audio/audio.c **** #ifdef VIBRATO_ENABLE
+ 784:quantum/audio/audio.c **** 
+ 785:quantum/audio/audio.c **** // Vibrato rate functions
+ 786:quantum/audio/audio.c **** 
+ 787:quantum/audio/audio.c **** void set_vibrato_rate(float rate) {
+ 788:quantum/audio/audio.c ****     vibrato_rate = rate;
+ 789:quantum/audio/audio.c **** }
+ 790:quantum/audio/audio.c **** 
+ 791:quantum/audio/audio.c **** void increase_vibrato_rate(float change) {
+ 792:quantum/audio/audio.c ****     vibrato_rate *= change;
+ 793:quantum/audio/audio.c **** }
+ 794:quantum/audio/audio.c **** 
+ 795:quantum/audio/audio.c **** void decrease_vibrato_rate(float change) {
+ 796:quantum/audio/audio.c ****     vibrato_rate /= change;
+ 797:quantum/audio/audio.c **** }
+ 798:quantum/audio/audio.c **** 
+ 799:quantum/audio/audio.c **** #ifdef VIBRATO_STRENGTH_ENABLE
+ 800:quantum/audio/audio.c **** 
+ 801:quantum/audio/audio.c **** void set_vibrato_strength(float strength) {
+ 802:quantum/audio/audio.c ****     vibrato_strength = strength;
+ 803:quantum/audio/audio.c **** }
+ 804:quantum/audio/audio.c **** 
+ 805:quantum/audio/audio.c **** void increase_vibrato_strength(float change) {
+ 806:quantum/audio/audio.c ****     vibrato_strength *= change;
+ 807:quantum/audio/audio.c **** }
+ 808:quantum/audio/audio.c **** 
+ 809:quantum/audio/audio.c **** void decrease_vibrato_strength(float change) {
+ 810:quantum/audio/audio.c ****     vibrato_strength /= change;
+ 811:quantum/audio/audio.c **** }
+ 812:quantum/audio/audio.c **** 
+ 813:quantum/audio/audio.c **** #endif  /* VIBRATO_STRENGTH_ENABLE */
+ 814:quantum/audio/audio.c **** 
+ 815:quantum/audio/audio.c **** #endif /* VIBRATO_ENABLE */
+ 816:quantum/audio/audio.c **** 
+ 817:quantum/audio/audio.c **** // Polyphony functions
+ 818:quantum/audio/audio.c **** 
+ 819:quantum/audio/audio.c **** void set_polyphony_rate(float rate) {
+ 852               		.loc 1 819 0
+ 853               		.cfi_startproc
+ 854               	.LVL48:
+ 855               	/* prologue: function */
+ 856               	/* frame size = 0 */
+ 857               	/* stack size = 0 */
+ 858               	.L__stack_usage = 0
+ 820:quantum/audio/audio.c ****     polyphony_rate = rate;
+ 859               		.loc 1 820 0
+ 860 0000 6093 0000 		sts polyphony_rate,r22
+ 861 0004 7093 0000 		sts polyphony_rate+1,r23
+ 862 0008 8093 0000 		sts polyphony_rate+2,r24
+ 863 000c 9093 0000 		sts polyphony_rate+3,r25
+ 864 0010 0895      		ret
+ 865               		.cfi_endproc
+ 866               	.LFE28:
+ 868               		.section	.text.enable_polyphony,"ax",@progbits
+ 869               	.global	enable_polyphony
+ 871               	enable_polyphony:
+ 872               	.LFB29:
+ 821:quantum/audio/audio.c **** }
+ 822:quantum/audio/audio.c **** 
+ 823:quantum/audio/audio.c **** void enable_polyphony() {
+ 873               		.loc 1 823 0
+ 874               		.cfi_startproc
+ 875               	/* prologue: function */
+ 876               	/* frame size = 0 */
+ 877               	/* stack size = 0 */
+ 878               	.L__stack_usage = 0
+ 824:quantum/audio/audio.c ****     polyphony_rate = 5;
+ 879               		.loc 1 824 0
+ 880 0000 80E0      		ldi r24,0
+ 881 0002 90E0      		ldi r25,0
+ 882 0004 A0EA      		ldi r26,lo8(-96)
+ 883 0006 B0E4      		ldi r27,lo8(64)
+ 884 0008 8093 0000 		sts polyphony_rate,r24
+ 885 000c 9093 0000 		sts polyphony_rate+1,r25
+ 886 0010 A093 0000 		sts polyphony_rate+2,r26
+ 887 0014 B093 0000 		sts polyphony_rate+3,r27
+ 888 0018 0895      		ret
+ 889               		.cfi_endproc
+ 890               	.LFE29:
+ 892               		.section	.text.disable_polyphony,"ax",@progbits
+ 893               	.global	disable_polyphony
+ 895               	disable_polyphony:
+ 896               	.LFB30:
+ 825:quantum/audio/audio.c **** }
+ 826:quantum/audio/audio.c **** 
+ 827:quantum/audio/audio.c **** void disable_polyphony() {
+ 897               		.loc 1 827 0
+ 898               		.cfi_startproc
+ 899               	/* prologue: function */
+ 900               	/* frame size = 0 */
+ 901               	/* stack size = 0 */
+ 902               	.L__stack_usage = 0
+ 828:quantum/audio/audio.c ****     polyphony_rate = 0;
+ 903               		.loc 1 828 0
+ 904 0000 1092 0000 		sts polyphony_rate,__zero_reg__
+ 905 0004 1092 0000 		sts polyphony_rate+1,__zero_reg__
+ 906 0008 1092 0000 		sts polyphony_rate+2,__zero_reg__
+ 907 000c 1092 0000 		sts polyphony_rate+3,__zero_reg__
+ 908 0010 0895      		ret
+ 909               		.cfi_endproc
+ 910               	.LFE30:
+ 912               		.section	.text.increase_polyphony_rate,"ax",@progbits
+ 913               	.global	increase_polyphony_rate
+ 915               	increase_polyphony_rate:
+ 916               	.LFB31:
+ 829:quantum/audio/audio.c **** }
+ 830:quantum/audio/audio.c **** 
+ 831:quantum/audio/audio.c **** void increase_polyphony_rate(float change) {
+ 917               		.loc 1 831 0
+ 918               		.cfi_startproc
+ 919               	.LVL49:
+ 920               	/* prologue: function */
+ 921               	/* frame size = 0 */
+ 922               	/* stack size = 0 */
+ 923               	.L__stack_usage = 0
+ 924 0000 9B01      		movw r18,r22
+ 925 0002 AC01      		movw r20,r24
+ 832:quantum/audio/audio.c ****     polyphony_rate *= change;
+ 926               		.loc 1 832 0
+ 927 0004 6091 0000 		lds r22,polyphony_rate
+ 928 0008 7091 0000 		lds r23,polyphony_rate+1
+ 929 000c 8091 0000 		lds r24,polyphony_rate+2
+ 930 0010 9091 0000 		lds r25,polyphony_rate+3
+ 931               	.LVL50:
+ 932 0014 0E94 0000 		call __mulsf3
+ 933               	.LVL51:
+ 934 0018 6093 0000 		sts polyphony_rate,r22
+ 935 001c 7093 0000 		sts polyphony_rate+1,r23
+ 936 0020 8093 0000 		sts polyphony_rate+2,r24
+ 937 0024 9093 0000 		sts polyphony_rate+3,r25
+ 938 0028 0895      		ret
+ 939               		.cfi_endproc
+ 940               	.LFE31:
+ 942               		.section	.text.decrease_polyphony_rate,"ax",@progbits
+ 943               	.global	decrease_polyphony_rate
+ 945               	decrease_polyphony_rate:
+ 946               	.LFB32:
+ 833:quantum/audio/audio.c **** }
+ 834:quantum/audio/audio.c **** 
+ 835:quantum/audio/audio.c **** void decrease_polyphony_rate(float change) {
+ 947               		.loc 1 835 0
+ 948               		.cfi_startproc
+ 949               	.LVL52:
+ 950               	/* prologue: function */
+ 951               	/* frame size = 0 */
+ 952               	/* stack size = 0 */
+ 953               	.L__stack_usage = 0
+ 954 0000 9B01      		movw r18,r22
+ 955 0002 AC01      		movw r20,r24
+ 836:quantum/audio/audio.c ****     polyphony_rate /= change;
+ 956               		.loc 1 836 0
+ 957 0004 6091 0000 		lds r22,polyphony_rate
+ 958 0008 7091 0000 		lds r23,polyphony_rate+1
+ 959 000c 8091 0000 		lds r24,polyphony_rate+2
+ 960 0010 9091 0000 		lds r25,polyphony_rate+3
+ 961               	.LVL53:
+ 962 0014 0E94 0000 		call __divsf3
+ 963               	.LVL54:
+ 964 0018 6093 0000 		sts polyphony_rate,r22
+ 965 001c 7093 0000 		sts polyphony_rate+1,r23
+ 966 0020 8093 0000 		sts polyphony_rate+2,r24
+ 967 0024 9093 0000 		sts polyphony_rate+3,r25
+ 968 0028 0895      		ret
+ 969               		.cfi_endproc
+ 970               	.LFE32:
+ 972               		.section	.text.set_timbre,"ax",@progbits
+ 973               	.global	set_timbre
+ 975               	set_timbre:
+ 976               	.LFB33:
+ 837:quantum/audio/audio.c **** }
+ 838:quantum/audio/audio.c **** 
+ 839:quantum/audio/audio.c **** // Timbre function
+ 840:quantum/audio/audio.c **** 
+ 841:quantum/audio/audio.c **** void set_timbre(float timbre) {
+ 977               		.loc 1 841 0
+ 978               		.cfi_startproc
+ 979               	.LVL55:
+ 980               	/* prologue: function */
+ 981               	/* frame size = 0 */
+ 982               	/* stack size = 0 */
+ 983               	.L__stack_usage = 0
+ 842:quantum/audio/audio.c ****     note_timbre = timbre;
+ 984               		.loc 1 842 0
+ 985 0000 6093 0000 		sts note_timbre,r22
+ 986 0004 7093 0000 		sts note_timbre+1,r23
+ 987 0008 8093 0000 		sts note_timbre+2,r24
+ 988 000c 9093 0000 		sts note_timbre+3,r25
+ 989 0010 0895      		ret
+ 990               		.cfi_endproc
+ 991               	.LFE33:
+ 993               		.section	.text.set_tempo,"ax",@progbits
+ 994               	.global	set_tempo
+ 996               	set_tempo:
+ 997               	.LFB34:
+ 843:quantum/audio/audio.c **** }
+ 844:quantum/audio/audio.c **** 
+ 845:quantum/audio/audio.c **** // Tempo functions
+ 846:quantum/audio/audio.c **** 
+ 847:quantum/audio/audio.c **** void set_tempo(uint8_t tempo) {
+ 998               		.loc 1 847 0
+ 999               		.cfi_startproc
+ 1000               	.LVL56:
+ 1001               	/* prologue: function */
+ 1002               	/* frame size = 0 */
+ 1003               	/* stack size = 0 */
+ 1004               	.L__stack_usage = 0
+ 848:quantum/audio/audio.c ****     note_tempo = tempo;
+ 1005               		.loc 1 848 0
+ 1006 0000 8093 0000 		sts note_tempo,r24
+ 1007 0004 0895      		ret
+ 1008               		.cfi_endproc
+ 1009               	.LFE34:
+ 1011               		.section	.text.decrease_tempo,"ax",@progbits
+ 1012               	.global	decrease_tempo
+ 1014               	decrease_tempo:
+ 1015               	.LFB35:
+ 849:quantum/audio/audio.c **** }
+ 850:quantum/audio/audio.c **** 
+ 851:quantum/audio/audio.c **** void decrease_tempo(uint8_t tempo_change) {
+ 1016               		.loc 1 851 0
+ 1017               		.cfi_startproc
+ 1018               	.LVL57:
+ 1019               	/* prologue: function */
+ 1020               	/* frame size = 0 */
+ 1021               	/* stack size = 0 */
+ 1022               	.L__stack_usage = 0
+ 852:quantum/audio/audio.c ****     note_tempo += tempo_change;
+ 1023               		.loc 1 852 0
+ 1024 0000 9091 0000 		lds r25,note_tempo
+ 1025 0004 890F      		add r24,r25
+ 1026               	.LVL58:
+ 1027 0006 8093 0000 		sts note_tempo,r24
+ 1028 000a 0895      		ret
+ 1029               		.cfi_endproc
+ 1030               	.LFE35:
+ 1032               		.section	.text.increase_tempo,"ax",@progbits
+ 1033               	.global	increase_tempo
+ 1035               	increase_tempo:
+ 1036               	.LFB36:
+ 853:quantum/audio/audio.c **** }
+ 854:quantum/audio/audio.c **** 
+ 855:quantum/audio/audio.c **** void increase_tempo(uint8_t tempo_change) {
+ 1037               		.loc 1 855 0
+ 1038               		.cfi_startproc
+ 1039               	.LVL59:
+ 1040               	/* prologue: function */
+ 1041               	/* frame size = 0 */
+ 1042               	/* stack size = 0 */
+ 1043               	.L__stack_usage = 0
+ 856:quantum/audio/audio.c ****     if (note_tempo - tempo_change < 10) {
+ 1044               		.loc 1 856 0
+ 1045 0000 9091 0000 		lds r25,note_tempo
+ 1046 0004 292F      		mov r18,r25
+ 1047 0006 30E0      		ldi r19,0
+ 1048 0008 281B      		sub r18,r24
+ 1049 000a 3109      		sbc r19,__zero_reg__
+ 1050 000c 2A30      		cpi r18,10
+ 1051 000e 3105      		cpc r19,__zero_reg__
+ 1052 0010 04F4      		brge .L78
+ 857:quantum/audio/audio.c ****         note_tempo = 10;
+ 1053               		.loc 1 857 0
+ 1054 0012 8AE0      		ldi r24,lo8(10)
+ 1055               	.LVL60:
+ 1056 0014 8093 0000 		sts note_tempo,r24
+ 1057 0018 0895      		ret
+ 1058               	.LVL61:
+ 1059               	.L78:
+ 858:quantum/audio/audio.c ****     } else {
+ 859:quantum/audio/audio.c ****         note_tempo -= tempo_change;
+ 1060               		.loc 1 859 0
+ 1061 001a 981B      		sub r25,r24
+ 1062 001c 9093 0000 		sts note_tempo,r25
+ 1063 0020 0895      		ret
+ 1064               		.cfi_endproc
+ 1065               	.LFE36:
+ 1067               		.section	.progmem.data.__c.3841,"a",@progbits
+ 1070               	__c.3841:
+ 1071 0000 6175 6469 		.string	"audio play note freq=%d vol=%d"
+ 1071      6F20 706C 
+ 1071      6179 206E 
+ 1071      6F74 6520 
+ 1071      6672 6571 
+ 1072               		.section	.progmem.data.__c.3827,"a",@progbits
+ 1075               	__c.3827:
+ 1076 0000 6175 6469 		.string	"audio stop note freq=%d"
+ 1076      6F20 7374 
+ 1076      6F70 206E 
+ 1076      6F74 6520 
+ 1076      6672 6571 
+ 1077               		.section	.progmem.data.__c.3818,"a",@progbits
+ 1080               	__c.3818:
+ 1081 0000 6175 6469 		.string	"audio stop all notes"
+ 1081      6F20 7374 
+ 1081      6F70 2061 
+ 1081      6C6C 206E 
+ 1081      6F74 6573 
+ 1082               	.global	audio_off_song
+ 1083               		.section	.data.audio_off_song,"aw",@progbits
+ 1086               	audio_off_song:
+ 1087 0000 00        		.byte	0
+ 1088 0001 00        		.byte	0
+ 1089 0002 DC        		.byte	-36
+ 1090 0003 44        		.byte	68
+ 1091 0004 00        		.byte	0
+ 1092 0005 00        		.byte	0
+ 1093 0006 00        		.byte	0
+ 1094 0007 41        		.byte	65
+ 1095 0008 00        		.byte	0
+ 1096 0009 00        		.byte	0
+ 1097 000a 5C        		.byte	92
+ 1098 000b 44        		.byte	68
+ 1099 000c 00        		.byte	0
+ 1100 000d 00        		.byte	0
+ 1101 000e 00        		.byte	0
+ 1102 000f 41        		.byte	65
+ 1103               	.global	audio_on_song
+ 1104               		.section	.data.audio_on_song,"aw",@progbits
+ 1107               	audio_on_song:
+ 1108 0000 00        		.byte	0
+ 1109 0001 00        		.byte	0
+ 1110 0002 5C        		.byte	92
+ 1111 0003 44        		.byte	68
+ 1112 0004 00        		.byte	0
+ 1113 0005 00        		.byte	0
+ 1114 0006 00        		.byte	0
+ 1115 0007 41        		.byte	65
+ 1116 0008 00        		.byte	0
+ 1117 0009 00        		.byte	0
+ 1118 000a DC        		.byte	-36
+ 1119 000b 44        		.byte	68
+ 1120 000c 00        		.byte	0
+ 1121 000d 00        		.byte	0
+ 1122 000e 00        		.byte	0
+ 1123 000f 41        		.byte	65
+ 1124               	.global	startup_song
+ 1125               		.section	.data.startup_song,"aw",@progbits
+ 1128               	startup_song:
+ 1129 0000 52        		.byte	82
+ 1130 0001 D0        		.byte	-48
+ 1131 0002 A4        		.byte	-92
+ 1132 0003 44        		.byte	68
+ 1133 0004 00        		.byte	0
+ 1134 0005 00        		.byte	0
+ 1135 0006 00        		.byte	0
+ 1136 0007 41        		.byte	65
+ 1137 0008 00        		.byte	0
+ 1138 0009 00        		.byte	0
+ 1139 000a DC        		.byte	-36
+ 1140 000b 44        		.byte	68
+ 1141 000c 00        		.byte	0
+ 1142 000d 00        		.byte	0
+ 1143 000e 00        		.byte	0
+ 1144 000f 41        		.byte	65
+ 1145 0010 52        		.byte	82
+ 1146 0011 D0        		.byte	-48
+ 1147 0012 24        		.byte	36
+ 1148 0013 45        		.byte	69
+ 1149 0014 00        		.byte	0
+ 1150 0015 00        		.byte	0
+ 1151 0016 40        		.byte	64
+ 1152 0017 41        		.byte	65
+ 1153               	.global	glissando
+ 1154               		.section	.data.glissando,"aw",@progbits
+ 1157               	glissando:
+ 1158 0000 01        		.byte	1
+ 1159               	.global	envelope_index
+ 1160               		.section	.bss.envelope_index,"aw",@nobits
+ 1163               	envelope_index:
+ 1164 0000 0000      		.zero	2
+ 1165               		.comm	audio_config,1,1
+ 1166               		.section	.bss.audio_initialized,"aw",@nobits
+ 1169               	audio_initialized:
+ 1170 0000 00        		.zero	1
+ 1171               	.global	polyphony_rate
+ 1172               		.section	.bss.polyphony_rate,"aw",@nobits
+ 1175               	polyphony_rate:
+ 1176 0000 0000 0000 		.zero	4
+ 1177               	.global	rest_counter
+ 1178               		.section	.bss.rest_counter,"aw",@nobits
+ 1181               	rest_counter:
+ 1182 0000 00        		.zero	1
+ 1183               	.global	current_note
+ 1184               		.section	.bss.current_note,"aw",@nobits
+ 1187               	current_note:
+ 1188 0000 00        		.zero	1
+ 1189               	.global	note_resting
+ 1190               		.section	.bss.note_resting,"aw",@nobits
+ 1193               	note_resting:
+ 1194 0000 00        		.zero	1
+ 1195               		.comm	notes_repeat,1,1
+ 1196               		.comm	notes_count,2,1
+ 1197               		.comm	notes_pointer,2,1
+ 1198               	.global	note_position
+ 1199               		.section	.bss.note_position,"aw",@nobits
+ 1202               	note_position:
+ 1203 0000 0000      		.zero	2
+ 1204               	.global	note_timbre
+ 1205               		.section	.data.note_timbre,"aw",@progbits
+ 1208               	note_timbre:
+ 1209 0000 00        		.byte	0
+ 1210 0001 00        		.byte	0
+ 1211 0002 00        		.byte	0
+ 1212 0003 3F        		.byte	63
+ 1213               	.global	note_tempo
+ 1214               		.section	.data.note_tempo,"aw",@progbits
+ 1217               	note_tempo:
+ 1218 0000 64        		.byte	100
+ 1219               	.global	note_length
+ 1220               		.section	.bss.note_length,"aw",@nobits
+ 1223               	note_length:
+ 1224 0000 0000 0000 		.zero	4
+ 1225               	.global	note_frequency
+ 1226               		.section	.bss.note_frequency,"aw",@nobits
+ 1229               	note_frequency:
+ 1230 0000 0000 0000 		.zero	4
+ 1231               	.global	playing_note
+ 1232               		.section	.bss.playing_note,"aw",@nobits
+ 1235               	playing_note:
+ 1236 0000 00        		.zero	1
+ 1237               	.global	playing_notes
+ 1238               		.section	.bss.playing_notes,"aw",@nobits
+ 1241               	playing_notes:
+ 1242 0000 00        		.zero	1
+ 1243               	.global	sample_length
+ 1244               		.section	.bss.sample_length,"aw",@nobits
+ 1247               	sample_length:
+ 1248 0000 0000      		.zero	2
+ 1249               		.comm	sample,2,1
+ 1250               	.global	place
+ 1251               		.section	.bss.place,"aw",@nobits
+ 1254               	place:
+ 1255 0000 0000 0000 		.zero	4
+ 1256               	.global	sliding
+ 1257               		.section	.bss.sliding,"aw",@nobits
+ 1260               	sliding:
+ 1261 0000 00        		.zero	1
+ 1262               	.global	volumes
+ 1263               		.section	.bss.volumes,"aw",@nobits
+ 1266               	volumes:
+ 1267 0000 0000 0000 		.zero	16
+ 1267      0000 0000 
+ 1267      0000 0000 
+ 1267      0000 0000 
+ 1268               	.global	frequencies
+ 1269               		.section	.bss.frequencies,"aw",@nobits
+ 1272               	frequencies:
+ 1273 0000 0000 0000 		.zero	32
+ 1273      0000 0000 
+ 1273      0000 0000 
+ 1273      0000 0000 
+ 1273      0000 0000 
+ 1274               	.global	position
+ 1275               		.section	.bss.position,"aw",@nobits
+ 1278               	position:
+ 1279 0000 0000 0000 		.zero	4
+ 1280               	.global	volume
+ 1281               		.section	.bss.volume,"aw",@nobits
+ 1284               	volume:
+ 1285 0000 0000      		.zero	2
+ 1286               	.global	frequency_alt
+ 1287               		.section	.bss.frequency_alt,"aw",@nobits
+ 1290               	frequency_alt:
+ 1291 0000 0000 0000 		.zero	4
+ 1292               	.global	frequency
+ 1293               		.section	.bss.frequency,"aw",@nobits
+ 1296               	frequency:
+ 1297 0000 0000 0000 		.zero	4
+ 1298               	.global	voice_place
+ 1299               		.section	.bss.voice_place,"aw",@nobits
+ 1302               	voice_place:
+ 1303 0000 0000      		.zero	2
+ 1304               	.global	voices
+ 1305               		.section	.bss.voices,"aw",@nobits
+ 1308               	voices:
+ 1309 0000 0000      		.zero	2
+ 1310               		.text
+ 1311               	.Letext0:
+ 1312               		.file 3 "c:\\msys64\\home\\cris almanza\\qmk_utils\\avr8-gnu-toolchain\\avr\\include\\stdint.h"
+ 1313               		.file 4 "tmk_core/common/report.h"
+ 1314               		.file 5 "tmk_core/common/debug.h"
+ 1315               		.file 6 "quantum/audio/audio.h"
+ 1316               		.file 7 "tmk_core/common/action_util.h"
+ 1317               		.file 8 "tmk_core/common/eeconfig.h"
+ 1318               		.file 9 "tmk_core/common/avr/xprintf.h"
+ 1319               		.file 10 "quantum/process_keycode/process_audio.h"
+DEFINED SYMBOLS
+                            *ABS*:00000000 audio.c
+C:\msys64\tmp\ccNv9CbJ.s:2      *ABS*:0000003e __SP_H__
+C:\msys64\tmp\ccNv9CbJ.s:3      *ABS*:0000003d __SP_L__
+C:\msys64\tmp\ccNv9CbJ.s:4      *ABS*:0000003f __SREG__
+C:\msys64\tmp\ccNv9CbJ.s:5      *ABS*:00000000 __tmp_reg__
+C:\msys64\tmp\ccNv9CbJ.s:6      *ABS*:00000001 __zero_reg__
+C:\msys64\tmp\ccNv9CbJ.s:16     .text.play_notes:00000000 play_notes
+C:\msys64\tmp\ccNv9CbJ.s:1169   .bss.audio_initialized:00000000 audio_initialized
+C:\msys64\tmp\ccNv9CbJ.s:158    .text.audio_init:00000000 audio_init
+                            *COM*:00000001 audio_config
+C:\msys64\tmp\ccNv9CbJ.s:1235   .bss.playing_note:00000000 playing_note
+C:\msys64\tmp\ccNv9CbJ.s:207    .text.stop_all_notes:00000000 stop_all_notes
+C:\msys64\tmp\ccNv9CbJ.s:1241   .bss.playing_notes:00000000 playing_notes
+                            *COM*:00000002 notes_pointer
+                            *COM*:00000002 notes_count
+                            *COM*:00000001 notes_repeat
+C:\msys64\tmp\ccNv9CbJ.s:1254   .bss.place:00000000 place
+C:\msys64\tmp\ccNv9CbJ.s:1187   .bss.current_note:00000000 current_note
+C:\msys64\tmp\ccNv9CbJ.s:1229   .bss.note_frequency:00000000 note_frequency
+C:\msys64\tmp\ccNv9CbJ.s:1217   .data.note_tempo:00000000 note_tempo
+C:\msys64\tmp\ccNv9CbJ.s:1223   .bss.note_length:00000000 note_length
+C:\msys64\tmp\ccNv9CbJ.s:1202   .bss.note_position:00000000 note_position
+C:\msys64\tmp\ccNv9CbJ.s:1128   .data.startup_song:00000000 startup_song
+C:\msys64\tmp\ccNv9CbJ.s:1080   .progmem.data.__c.3818:00000000 __c.3818
+C:\msys64\tmp\ccNv9CbJ.s:1308   .bss.voices:00000000 voices
+C:\msys64\tmp\ccNv9CbJ.s:1296   .bss.frequency:00000000 frequency
+C:\msys64\tmp\ccNv9CbJ.s:1290   .bss.frequency_alt:00000000 frequency_alt
+C:\msys64\tmp\ccNv9CbJ.s:1284   .bss.volume:00000000 volume
+C:\msys64\tmp\ccNv9CbJ.s:1272   .bss.frequencies:00000000 frequencies
+C:\msys64\tmp\ccNv9CbJ.s:1266   .bss.volumes:00000000 volumes
+C:\msys64\tmp\ccNv9CbJ.s:296    .text.stop_note:00000000 stop_note
+C:\msys64\tmp\ccNv9CbJ.s:1075   .progmem.data.__c.3827:00000000 __c.3827
+C:\msys64\tmp\ccNv9CbJ.s:1302   .bss.voice_place:00000000 voice_place
+C:\msys64\tmp\ccNv9CbJ.s:542    .text.play_note:00000000 play_note
+C:\msys64\tmp\ccNv9CbJ.s:1070   .progmem.data.__c.3841:00000000 __c.3841
+C:\msys64\tmp\ccNv9CbJ.s:1163   .bss.envelope_index:00000000 envelope_index
+C:\msys64\tmp\ccNv9CbJ.s:703    .text.is_playing_notes:00000000 is_playing_notes
+C:\msys64\tmp\ccNv9CbJ.s:720    .text.is_audio_on:00000000 is_audio_on
+C:\msys64\tmp\ccNv9CbJ.s:739    .text.audio_toggle:00000000 audio_toggle
+C:\msys64\tmp\ccNv9CbJ.s:771    .text.audio_on:00000000 audio_on
+C:\msys64\tmp\ccNv9CbJ.s:1107   .data.audio_on_song:00000000 audio_on_song
+C:\msys64\tmp\ccNv9CbJ.s:803    .text.audio_off:00000000 audio_off
+C:\msys64\tmp\ccNv9CbJ.s:1086   .data.audio_off_song:00000000 audio_off_song
+C:\msys64\tmp\ccNv9CbJ.s:850    .text.set_polyphony_rate:00000000 set_polyphony_rate
+C:\msys64\tmp\ccNv9CbJ.s:1175   .bss.polyphony_rate:00000000 polyphony_rate
+C:\msys64\tmp\ccNv9CbJ.s:871    .text.enable_polyphony:00000000 enable_polyphony
+C:\msys64\tmp\ccNv9CbJ.s:895    .text.disable_polyphony:00000000 disable_polyphony
+C:\msys64\tmp\ccNv9CbJ.s:915    .text.increase_polyphony_rate:00000000 increase_polyphony_rate
+C:\msys64\tmp\ccNv9CbJ.s:945    .text.decrease_polyphony_rate:00000000 decrease_polyphony_rate
+C:\msys64\tmp\ccNv9CbJ.s:975    .text.set_timbre:00000000 set_timbre
+C:\msys64\tmp\ccNv9CbJ.s:1208   .data.note_timbre:00000000 note_timbre
+C:\msys64\tmp\ccNv9CbJ.s:996    .text.set_tempo:00000000 set_tempo
+C:\msys64\tmp\ccNv9CbJ.s:1014   .text.decrease_tempo:00000000 decrease_tempo
+C:\msys64\tmp\ccNv9CbJ.s:1035   .text.increase_tempo:00000000 increase_tempo
+C:\msys64\tmp\ccNv9CbJ.s:1157   .data.glissando:00000000 glissando
+C:\msys64\tmp\ccNv9CbJ.s:1181   .bss.rest_counter:00000000 rest_counter
+C:\msys64\tmp\ccNv9CbJ.s:1193   .bss.note_resting:00000000 note_resting
+C:\msys64\tmp\ccNv9CbJ.s:1247   .bss.sample_length:00000000 sample_length
+                            *COM*:00000002 sample
+C:\msys64\tmp\ccNv9CbJ.s:1260   .bss.sliding:00000000 sliding
+C:\msys64\tmp\ccNv9CbJ.s:1278   .bss.position:00000000 position
+
+UNDEFINED SYMBOLS
+__mulsf3
+__floatunsisf
+__divsf3
+eeconfig_is_enabled
+eeconfig_init
+eeconfig_read_audio
+debug_config
+__xprintf
+__fixsfsi
+__eqsf2
+__gtsf2
+eeconfig_update_audio
+audio_on_user
+__do_copy_data
+__do_clear_bss

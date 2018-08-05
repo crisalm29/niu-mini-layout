@@ -1,0 +1,994 @@
+   1               		.file	"keymap.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.section	.text.process_record_user,"ax",@progbits
+  11               	.global	process_record_user
+  13               	process_record_user:
+  14               	.LFB17:
+  15               		.file 1 "keyboards/niu_mini/keymaps/planck/keymap.c"
+   1:keyboards/niu_mini/keymaps/planck/keymap.c **** /* Copyright 2015-2017 Jack Humbert
+   2:keyboards/niu_mini/keymaps/planck/keymap.c ****  *
+   3:keyboards/niu_mini/keymaps/planck/keymap.c ****  * This program is free software: you can redistribute it and/or modify
+   4:keyboards/niu_mini/keymaps/planck/keymap.c ****  * it under the terms of the GNU General Public License as published by
+   5:keyboards/niu_mini/keymaps/planck/keymap.c ****  * the Free Software Foundation, either version 2 of the License, or
+   6:keyboards/niu_mini/keymaps/planck/keymap.c ****  * (at your option) any later version.
+   7:keyboards/niu_mini/keymaps/planck/keymap.c ****  *
+   8:keyboards/niu_mini/keymaps/planck/keymap.c ****  * This program is distributed in the hope that it will be useful,
+   9:keyboards/niu_mini/keymaps/planck/keymap.c ****  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  10:keyboards/niu_mini/keymaps/planck/keymap.c ****  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  11:keyboards/niu_mini/keymaps/planck/keymap.c ****  * GNU General Public License for more details.
+  12:keyboards/niu_mini/keymaps/planck/keymap.c ****  *
+  13:keyboards/niu_mini/keymaps/planck/keymap.c ****  * You should have received a copy of the GNU General Public License
+  14:keyboards/niu_mini/keymaps/planck/keymap.c ****  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  15:keyboards/niu_mini/keymaps/planck/keymap.c ****  */
+  16:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+  17:keyboards/niu_mini/keymaps/planck/keymap.c **** #include QMK_KEYBOARD_H
+  18:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+  19:keyboards/niu_mini/keymaps/planck/keymap.c **** extern keymap_config_t keymap_config;
+  20:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+  21:keyboards/niu_mini/keymaps/planck/keymap.c **** enum layers {
+  22:keyboards/niu_mini/keymaps/planck/keymap.c ****   _QWERTY,
+  23:keyboards/niu_mini/keymaps/planck/keymap.c ****   _COLEMAK,
+  24:keyboards/niu_mini/keymaps/planck/keymap.c ****   _DVORAK,
+  25:keyboards/niu_mini/keymaps/planck/keymap.c ****   _LOWER,
+  26:keyboards/niu_mini/keymaps/planck/keymap.c ****   _RAISE,
+  27:keyboards/niu_mini/keymaps/planck/keymap.c ****   _PLOVER,
+  28:keyboards/niu_mini/keymaps/planck/keymap.c ****   _ADJUST
+  29:keyboards/niu_mini/keymaps/planck/keymap.c **** };
+  30:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+  31:keyboards/niu_mini/keymaps/planck/keymap.c **** enum keycodes {
+  32:keyboards/niu_mini/keymaps/planck/keymap.c ****   QWERTY = SAFE_RANGE,
+  33:keyboards/niu_mini/keymaps/planck/keymap.c ****   COLEMAK,
+  34:keyboards/niu_mini/keymaps/planck/keymap.c ****   DVORAK,
+  35:keyboards/niu_mini/keymaps/planck/keymap.c ****   PLOVER,
+  36:keyboards/niu_mini/keymaps/planck/keymap.c ****   LOWER,
+  37:keyboards/niu_mini/keymaps/planck/keymap.c ****   RAISE,
+  38:keyboards/niu_mini/keymaps/planck/keymap.c ****   BACKLIT,
+  39:keyboards/niu_mini/keymaps/planck/keymap.c ****   EXT_PLV
+  40:keyboards/niu_mini/keymaps/planck/keymap.c **** };
+  41:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+  42:keyboards/niu_mini/keymaps/planck/keymap.c **** const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
+  43:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+  44:keyboards/niu_mini/keymaps/planck/keymap.c **** /* Qwerty
+  45:keyboards/niu_mini/keymaps/planck/keymap.c ****  * ,-----------------------------------------------------------------------------------.
+  46:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Tab  |   Q  |   W  |   E  |   R  |   T  |   Y  |   U  |   I  |   O  |   P  | Bksp |
+  47:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+-------------+------+------+------+------+------|
+  48:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Esc  |   A  |   S  |   D  |   F  |   G  |   H  |   J  |   K  |   L  |   ;  |  "   |
+  49:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------|------+------+------+------+------+------|
+  50:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Shift|   Z  |   X  |   C  |   V  |   B  |   N  |   M  |   ,  |   .  |   /  |Enter |
+  51:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------+------+------+------+------+------+------|
+  52:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Brite| Ctrl | Alt  | GUI  |Lower |    Space    |Raise | Left | Down |  Up  |Right |
+  53:keyboards/niu_mini/keymaps/planck/keymap.c ****  * `-----------------------------------------------------------------------------------'
+  54:keyboards/niu_mini/keymaps/planck/keymap.c ****  */
+  55:keyboards/niu_mini/keymaps/planck/keymap.c **** [_QWERTY] = LAYOUT_planck_mit(
+  56:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_ESC,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,  
+  57:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_TAB,  KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN
+  58:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_LSFT, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH
+  59:keyboards/niu_mini/keymaps/planck/keymap.c ****   BACKLIT, KC_LCTL, KC_LALT, KC_LGUI, LOWER,       KC_SPC,       RAISE,   KC_LEFT, KC_DOWN, KC_UP, 
+  60:keyboards/niu_mini/keymaps/planck/keymap.c **** ),
+  61:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+  62:keyboards/niu_mini/keymaps/planck/keymap.c **** /* Colemak
+  63:keyboards/niu_mini/keymaps/planck/keymap.c ****  * ,-----------------------------------------------------------------------------------.
+  64:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Tab  |   Q  |   W  |   F  |   P  |   G  |   J  |   L  |   U  |   Y  |   ;  | Bksp |
+  65:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+-------------+------+------+------+------+------|
+  66:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Esc  |   A  |   R  |   S  |   T  |   D  |   H  |   N  |   E  |   I  |   O  |  "   |
+  67:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------|------+------+------+------+------+------|
+  68:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Shift|   Z  |   X  |   C  |   V  |   B  |   K  |   M  |   ,  |   .  |   /  |Enter |
+  69:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------+------+------+------+------+------+------|
+  70:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Brite| Ctrl | Alt  | GUI  |Lower |    Space    |Raise | Left | Down |  Up  |Right |
+  71:keyboards/niu_mini/keymaps/planck/keymap.c ****  * `-----------------------------------------------------------------------------------'
+  72:keyboards/niu_mini/keymaps/planck/keymap.c ****  */
+  73:keyboards/niu_mini/keymaps/planck/keymap.c **** [_COLEMAK] = LAYOUT_planck_mit(
+  74:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_ESC,  KC_Q,    KC_W,    KC_F,    KC_P,    KC_G,    KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN
+  75:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_TAB,  KC_A,    KC_R,    KC_S,    KC_T,    KC_D,    KC_H,    KC_N,    KC_E,    KC_I,    KC_O,  
+  76:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_LSFT, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_K,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH
+  77:keyboards/niu_mini/keymaps/planck/keymap.c ****   BACKLIT, KC_LCTL, KC_LALT, KC_LGUI, LOWER,       KC_SPC,       RAISE,   KC_LEFT, KC_DOWN, KC_UP, 
+  78:keyboards/niu_mini/keymaps/planck/keymap.c **** ),
+  79:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+  80:keyboards/niu_mini/keymaps/planck/keymap.c **** /* Dvorak
+  81:keyboards/niu_mini/keymaps/planck/keymap.c ****  * ,-----------------------------------------------------------------------------------.
+  82:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Tab  |   "  |   ,  |   .  |   P  |   Y  |   F  |   G  |   C  |   R  |   L  | Bksp |
+  83:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+-------------+------+------+------+------+------|
+  84:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Esc  |   A  |   O  |   E  |   U  |   I  |   D  |   H  |   T  |   N  |   S  |  /   |
+  85:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------|------+------+------+------+------+------|
+  86:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Shift|   ;  |   Q  |   J  |   K  |   X  |   B  |   M  |   W  |   V  |   Z  |Enter |
+  87:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------+------+------+------+------+------+------|
+  88:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Brite| Ctrl | Alt  | GUI  |Lower |    Space    |Raise | Left | Down |  Up  |Right |
+  89:keyboards/niu_mini/keymaps/planck/keymap.c ****  * `-----------------------------------------------------------------------------------'
+  90:keyboards/niu_mini/keymaps/planck/keymap.c ****  */
+  91:keyboards/niu_mini/keymaps/planck/keymap.c **** [_DVORAK] = LAYOUT_planck_mit(
+  92:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_ESC,  KC_QUOT, KC_COMM, KC_DOT,  KC_P,    KC_Y,    KC_F,    KC_G,    KC_C,    KC_R,    KC_L,  
+  93:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_TAB,  KC_A,    KC_O,    KC_E,    KC_U,    KC_I,    KC_D,    KC_H,    KC_T,    KC_N,    KC_S,  
+  94:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_LSFT, KC_SCLN, KC_Q,    KC_J,    KC_K,    KC_X,    KC_B,    KC_M,    KC_W,    KC_V,    KC_Z,  
+  95:keyboards/niu_mini/keymaps/planck/keymap.c ****   BACKLIT, KC_LCTL, KC_LALT, KC_LGUI, LOWER,       KC_SPC,       RAISE,   KC_LEFT, KC_DOWN, KC_UP, 
+  96:keyboards/niu_mini/keymaps/planck/keymap.c **** ),
+  97:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+  98:keyboards/niu_mini/keymaps/planck/keymap.c **** /* Lower
+  99:keyboards/niu_mini/keymaps/planck/keymap.c ****  * ,-----------------------------------------------------------------------------------.
+ 100:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |   ~  |   !  |   @  |   #  |   $  |   %  |   ^  |   &  |   *  |   (  |   )  | Bksp |
+ 101:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+-------------+------+------+------+------+------|
+ 102:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Del  |  F1  |  F2  |  F3  |  F4  |  F5  |  F6  |   _  |   +  |   {  |   }  |  |   |
+ 103:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------|------+------+------+------+------+------|
+ 104:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |      |  F7  |  F8  |  F9  |  F10 |  F11 |  F12 |ISO ~ |ISO | | Home | End  |      |
+ 105:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------+------+------+------+------+------+------|
+ 106:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |      |      |      |      |      |             |      | Next | Vol- | Vol+ | Play |
+ 107:keyboards/niu_mini/keymaps/planck/keymap.c ****  * `-----------------------------------------------------------------------------------'
+ 108:keyboards/niu_mini/keymaps/planck/keymap.c ****  */
+ 109:keyboards/niu_mini/keymaps/planck/keymap.c **** [_LOWER] = LAYOUT_planck_mit(
+ 110:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_TILD, KC_EXLM, KC_AT,   KC_HASH, KC_DLR,  KC_PERC, KC_CIRC, KC_AMPR,    KC_ASTR,    KC_LPRN, K
+ 111:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_DEL,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_UNDS,    KC_PLUS,    KC_LCBR, K
+ 112:keyboards/niu_mini/keymaps/planck/keymap.c ****   _______, KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  S(KC_NUHS), S(KC_NUBS), KC_HOME, K
+ 113:keyboards/niu_mini/keymaps/planck/keymap.c ****   _______, _______, _______, _______, _______,     _______,      _______,    KC_MNXT,    KC_VOLD, K
+ 114:keyboards/niu_mini/keymaps/planck/keymap.c **** ),
+ 115:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+ 116:keyboards/niu_mini/keymaps/planck/keymap.c **** /* Raise
+ 117:keyboards/niu_mini/keymaps/planck/keymap.c ****  * ,-----------------------------------------------------------------------------------.
+ 118:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |   `  |   1  |   2  |   3  |   4  |   5  |   6  |   7  |   8  |   9  |   0  | Bksp |
+ 119:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+-------------+------+------+------+------+------|
+ 120:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Del  |  F1  |  F2  |  F3  |  F4  |  F5  |  F6  |   -  |   =  |   [  |   ]  |  \   |
+ 121:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------|------+------+------+------+------+------|
+ 122:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |      |  F7  |  F8  |  F9  |  F10 |  F11 |  F12 |ISO # |ISO / |Pg Up |Pg Dn |      |
+ 123:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------+------+------+------+------+------+------|
+ 124:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |      |      |      |      |      |             |      | Next | Vol- | Vol+ | Play |
+ 125:keyboards/niu_mini/keymaps/planck/keymap.c ****  * `-----------------------------------------------------------------------------------'
+ 126:keyboards/niu_mini/keymaps/planck/keymap.c ****  */
+ 127:keyboards/niu_mini/keymaps/planck/keymap.c **** [_RAISE] = LAYOUT_planck_mit(
+ 128:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_GRV,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,    KC_0,  
+ 129:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_DEL,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,   KC_MINS, KC_EQL,  KC_LBRC, KC_RBRC
+ 130:keyboards/niu_mini/keymaps/planck/keymap.c ****   _______, KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  KC_NUHS, KC_NUBS, KC_PGUP, KC_PGDN
+ 131:keyboards/niu_mini/keymaps/planck/keymap.c ****   _______, _______, _______, _______, _______,     _______,      _______, KC_MNXT, KC_VOLD, KC_VOLU
+ 132:keyboards/niu_mini/keymaps/planck/keymap.c **** ),
+ 133:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+ 134:keyboards/niu_mini/keymaps/planck/keymap.c **** /* Plover layer (http://opensteno.org)
+ 135:keyboards/niu_mini/keymaps/planck/keymap.c ****  * ,-----------------------------------------------------------------------------------.
+ 136:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |   #  |   #  |   #  |   #  |   #  |   #  |   #  |   #  |   #  |   #  |   #  |   #  |
+ 137:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+-------------+------+------+------+------+------|
+ 138:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |      |   S  |   T  |   P  |   H  |   *  |   *  |   F  |   P  |   L  |   T  |   D  |
+ 139:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------|------+------+------+------+------+------|
+ 140:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |      |   S  |   K  |   W  |   R  |   *  |   *  |   R  |   B  |   G  |   S  |   Z  |
+ 141:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------+------+------+------+------+------+------|
+ 142:keyboards/niu_mini/keymaps/planck/keymap.c ****  * | Exit |      |      |   A  |   O  |             |   E  |   U  |      |      |      |
+ 143:keyboards/niu_mini/keymaps/planck/keymap.c ****  * `-----------------------------------------------------------------------------------'
+ 144:keyboards/niu_mini/keymaps/planck/keymap.c ****  */
+ 145:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+ 146:keyboards/niu_mini/keymaps/planck/keymap.c **** [_PLOVER] = LAYOUT_planck_mit(
+ 147:keyboards/niu_mini/keymaps/planck/keymap.c ****   KC_1,    KC_1,    KC_1,    KC_1,    KC_1,    KC_1,    KC_1,    KC_1,    KC_1,    KC_1,    KC_1,  
+ 148:keyboards/niu_mini/keymaps/planck/keymap.c ****   XXXXXXX, KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,    KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,  
+ 149:keyboards/niu_mini/keymaps/planck/keymap.c ****   XXXXXXX, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN
+ 150:keyboards/niu_mini/keymaps/planck/keymap.c ****   EXT_PLV, XXXXXXX, XXXXXXX, KC_C,    KC_V,        XXXXXXX,      KC_N,    KC_M,    XXXXXXX, XXXXXXX
+ 151:keyboards/niu_mini/keymaps/planck/keymap.c **** ),
+ 152:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+ 153:keyboards/niu_mini/keymaps/planck/keymap.c **** /* Adjust (Lower + Raise)
+ 154:keyboards/niu_mini/keymaps/planck/keymap.c ****  * ,-----------------------------------------------------------------------------------.
+ 155:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |      | Reset|      |      |      |      |      |      |      |      |      |  Del |
+ 156:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+-------------+------+------+------+------+------|
+ 157:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |      |      |      |Aud on|Audoff|AGnorm|AGswap|Qwerty|Colemk|Dvorak|Plover|      |
+ 158:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------|------+------+------+------+------+------|
+ 159:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |      |Voice-|Voice+|Mus on|Musoff|MIDIon|MIDIof|      |      |      |      |      |
+ 160:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |------+------+------+------+------+------+------+------+------+------+------+------|
+ 161:keyboards/niu_mini/keymaps/planck/keymap.c ****  * |      |      |      |      |      |             |      |      |      |      |      |
+ 162:keyboards/niu_mini/keymaps/planck/keymap.c ****  * `-----------------------------------------------------------------------------------'
+ 163:keyboards/niu_mini/keymaps/planck/keymap.c ****  */
+ 164:keyboards/niu_mini/keymaps/planck/keymap.c **** [_ADJUST] = LAYOUT_planck_mit(
+ 165:keyboards/niu_mini/keymaps/planck/keymap.c ****   _______, RESET,   DEBUG,   _______, _______, _______, _______, TERM_ON, TERM_OFF,_______, _______
+ 166:keyboards/niu_mini/keymaps/planck/keymap.c ****   _______, _______, MU_MOD,  AU_ON,   AU_OFF,  AG_NORM, AG_SWAP, QWERTY,  COLEMAK, DVORAK,  PLOVER,
+ 167:keyboards/niu_mini/keymaps/planck/keymap.c ****   _______, MUV_DE,  MUV_IN,  MU_ON,   MU_OFF,  MI_ON,   MI_OFF,  _______, _______, _______, _______
+ 168:keyboards/niu_mini/keymaps/planck/keymap.c ****   _______, _______, _______, _______, _______,     _______,      _______, _______, _______, _______
+ 169:keyboards/niu_mini/keymaps/planck/keymap.c **** )
+ 170:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+ 171:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+ 172:keyboards/niu_mini/keymaps/planck/keymap.c **** };
+ 173:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+ 174:keyboards/niu_mini/keymaps/planck/keymap.c **** #ifdef AUDIO_ENABLE
+ 175:keyboards/niu_mini/keymaps/planck/keymap.c ****   float plover_song[][2]     = SONG(PLOVER_SOUND);
+ 176:keyboards/niu_mini/keymaps/planck/keymap.c ****   float plover_gb_song[][2]  = SONG(PLOVER_GOODBYE_SOUND);
+ 177:keyboards/niu_mini/keymaps/planck/keymap.c **** #endif
+ 178:keyboards/niu_mini/keymaps/planck/keymap.c **** 
+ 179:keyboards/niu_mini/keymaps/planck/keymap.c **** bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+  16               		.loc 1 179 0
+  17               		.cfi_startproc
+  18               	.LVL0:
+  19 0000 CF93      		push r28
+  20               	.LCFI0:
+  21               		.cfi_def_cfa_offset 3
+  22               		.cfi_offset 28, -2
+  23               	/* prologue: function */
+  24               	/* frame size = 0 */
+  25               	/* stack size = 1 */
+  26               	.L__stack_usage = 1
+ 180:keyboards/niu_mini/keymaps/planck/keymap.c ****   switch (keycode) {
+  27               		.loc 1 180 0
+  28 0002 FC01      		movw r30,r24
+  29 0004 EA5D      		subi r30,-38
+  30 0006 FC45      		sbci r31,92
+  31 0008 E830      		cpi r30,8
+  32 000a F105      		cpc r31,__zero_reg__
+  33 000c 00F0      		brlo .+2
+  34 000e 00C0      		rjmp .L16
+  35 0010 DB01      		movw r26,r22
+  36 0012 E050      		subi r30,lo8(-(gs(.L4)))
+  37 0014 F040      		sbci r31,hi8(-(gs(.L4)))
+  38 0016 1296      		adiw r26,2
+  39 0018 CC91      		ld r28,X
+  40 001a 0C94 0000 		jmp __tablejump2__
+  41               		.section	.progmem.gcc_sw_table.process_record_user,"a",@progbits
+  42               		.p2align	1
+  43               	.L4:
+  44 0000 0000      		.word gs(.L3)
+  45 0002 0000      		.word gs(.L5)
+  46 0004 0000      		.word gs(.L6)
+  47 0006 0000      		.word gs(.L7)
+  48 0008 0000      		.word gs(.L8)
+  49 000a 0000      		.word gs(.L9)
+  50 000c 0000      		.word gs(.L10)
+  51 000e 0000      		.word gs(.L11)
+  52               		.section	.text.process_record_user
+  53               	.L3:
+ 181:keyboards/niu_mini/keymaps/planck/keymap.c ****     case QWERTY:
+ 182:keyboards/niu_mini/keymaps/planck/keymap.c ****       if (record->event.pressed) {
+  54               		.loc 1 182 0
+  55 001e CC23      		tst r28
+  56 0020 01F4      		brne .+2
+  57 0022 00C0      		rjmp .L2
+ 183:keyboards/niu_mini/keymaps/planck/keymap.c ****         print("mode just switched to qwerty and this is a huge string\n");
+  58               		.loc 1 183 0
+  59 0024 80E0      		ldi r24,lo8(__c.3473)
+  60 0026 90E0      		ldi r25,hi8(__c.3473)
+  61               	.LVL1:
+  62 0028 0E94 0000 		call xputs
+  63               	.LVL2:
+ 184:keyboards/niu_mini/keymaps/planck/keymap.c ****         set_single_persistent_default_layer(_QWERTY);
+  64               		.loc 1 184 0
+  65 002c 80E0      		ldi r24,0
+  66 002e 00C0      		rjmp .L33
+  67               	.LVL3:
+  68               	.L5:
+ 185:keyboards/niu_mini/keymaps/planck/keymap.c ****       }
+ 186:keyboards/niu_mini/keymaps/planck/keymap.c ****       return false;
+ 187:keyboards/niu_mini/keymaps/planck/keymap.c ****       break;
+ 188:keyboards/niu_mini/keymaps/planck/keymap.c ****     case COLEMAK:
+ 189:keyboards/niu_mini/keymaps/planck/keymap.c ****       if (record->event.pressed) {
+  69               		.loc 1 189 0
+  70 0030 CC23      		tst r28
+  71 0032 01F4      		brne .+2
+  72 0034 00C0      		rjmp .L2
+ 190:keyboards/niu_mini/keymaps/planck/keymap.c ****         set_single_persistent_default_layer(_COLEMAK);
+  73               		.loc 1 190 0
+  74 0036 81E0      		ldi r24,lo8(1)
+  75               	.LVL4:
+  76               	.L33:
+  77 0038 0E94 0000 		call set_single_persistent_default_layer
+  78               	.LVL5:
+  79 003c 00C0      		rjmp .L32
+  80               	.LVL6:
+  81               	.L6:
+ 191:keyboards/niu_mini/keymaps/planck/keymap.c ****       }
+ 192:keyboards/niu_mini/keymaps/planck/keymap.c ****       return false;
+ 193:keyboards/niu_mini/keymaps/planck/keymap.c ****       break;
+ 194:keyboards/niu_mini/keymaps/planck/keymap.c ****     case DVORAK:
+ 195:keyboards/niu_mini/keymaps/planck/keymap.c ****       if (record->event.pressed) {
+  82               		.loc 1 195 0
+  83 003e CC23      		tst r28
+  84 0040 01F4      		brne .+2
+  85 0042 00C0      		rjmp .L2
+ 196:keyboards/niu_mini/keymaps/planck/keymap.c ****         set_single_persistent_default_layer(_DVORAK);
+  86               		.loc 1 196 0
+  87 0044 82E0      		ldi r24,lo8(2)
+  88               	.LVL7:
+  89 0046 00C0      		rjmp .L33
+  90               	.LVL8:
+  91               	.L8:
+ 197:keyboards/niu_mini/keymaps/planck/keymap.c ****       }
+ 198:keyboards/niu_mini/keymaps/planck/keymap.c ****       return false;
+ 199:keyboards/niu_mini/keymaps/planck/keymap.c ****       break;
+ 200:keyboards/niu_mini/keymaps/planck/keymap.c ****     case LOWER:
+ 201:keyboards/niu_mini/keymaps/planck/keymap.c ****       if (record->event.pressed) {
+ 202:keyboards/niu_mini/keymaps/planck/keymap.c ****         layer_on(_LOWER);
+  92               		.loc 1 202 0
+  93 0048 83E0      		ldi r24,lo8(3)
+  94               	.LVL9:
+  95 004a 00C0      		rjmp .L36
+  96               	.LVL10:
+  97               	.L9:
+ 203:keyboards/niu_mini/keymaps/planck/keymap.c ****         update_tri_layer(_LOWER, _RAISE, _ADJUST);
+ 204:keyboards/niu_mini/keymaps/planck/keymap.c ****       } else {
+ 205:keyboards/niu_mini/keymaps/planck/keymap.c ****         layer_off(_LOWER);
+ 206:keyboards/niu_mini/keymaps/planck/keymap.c ****         update_tri_layer(_LOWER, _RAISE, _ADJUST);
+ 207:keyboards/niu_mini/keymaps/planck/keymap.c ****       }
+ 208:keyboards/niu_mini/keymaps/planck/keymap.c ****       return false;
+ 209:keyboards/niu_mini/keymaps/planck/keymap.c ****       break;
+ 210:keyboards/niu_mini/keymaps/planck/keymap.c ****     case RAISE:
+ 211:keyboards/niu_mini/keymaps/planck/keymap.c ****       if (record->event.pressed) {
+ 212:keyboards/niu_mini/keymaps/planck/keymap.c ****         layer_on(_RAISE);
+  98               		.loc 1 212 0
+  99 004c 84E0      		ldi r24,lo8(4)
+ 100               	.LVL11:
+ 101               	.L36:
+ 211:keyboards/niu_mini/keymaps/planck/keymap.c ****         layer_on(_RAISE);
+ 102               		.loc 1 211 0
+ 103 004e CC23      		tst r28
+ 104 0050 01F0      		breq .L13
+ 105               		.loc 1 212 0
+ 106 0052 0E94 0000 		call layer_on
+ 107               	.LVL12:
+ 213:keyboards/niu_mini/keymaps/planck/keymap.c ****         update_tri_layer(_LOWER, _RAISE, _ADJUST);
+ 108               		.loc 1 213 0
+ 109 0056 46E0      		ldi r20,lo8(6)
+ 110 0058 64E0      		ldi r22,lo8(4)
+ 111 005a 83E0      		ldi r24,lo8(3)
+ 112 005c 0E94 0000 		call update_tri_layer
+ 113               	.LVL13:
+ 114 0060 00C0      		rjmp .L32
+ 115               	.LVL14:
+ 116               	.L13:
+ 214:keyboards/niu_mini/keymaps/planck/keymap.c ****       } else {
+ 215:keyboards/niu_mini/keymaps/planck/keymap.c ****         layer_off(_RAISE);
+ 117               		.loc 1 215 0
+ 118 0062 0E94 0000 		call layer_off
+ 119               	.LVL15:
+ 216:keyboards/niu_mini/keymaps/planck/keymap.c ****         update_tri_layer(_LOWER, _RAISE, _ADJUST);
+ 120               		.loc 1 216 0
+ 121 0066 46E0      		ldi r20,lo8(6)
+ 122 0068 64E0      		ldi r22,lo8(4)
+ 123 006a 83E0      		ldi r24,lo8(3)
+ 124 006c 0E94 0000 		call update_tri_layer
+ 125               	.LVL16:
+ 126 0070 00C0      		rjmp .L2
+ 127               	.LVL17:
+ 128               	.L10:
+ 217:keyboards/niu_mini/keymaps/planck/keymap.c ****       }
+ 218:keyboards/niu_mini/keymaps/planck/keymap.c ****       return false;
+ 219:keyboards/niu_mini/keymaps/planck/keymap.c ****       break;
+ 220:keyboards/niu_mini/keymaps/planck/keymap.c ****     case BACKLIT:
+ 221:keyboards/niu_mini/keymaps/planck/keymap.c ****       if (record->event.pressed) {
+ 222:keyboards/niu_mini/keymaps/planck/keymap.c ****         register_code(KC_RSFT);
+ 129               		.loc 1 222 0
+ 130 0072 85EE      		ldi r24,lo8(-27)
+ 131               	.LVL18:
+ 221:keyboards/niu_mini/keymaps/planck/keymap.c ****         register_code(KC_RSFT);
+ 132               		.loc 1 221 0
+ 133 0074 CC23      		tst r28
+ 134 0076 01F0      		breq .L14
+ 135               		.loc 1 222 0
+ 136 0078 0E94 0000 		call register_code
+ 137               	.LVL19:
+ 223:keyboards/niu_mini/keymaps/planck/keymap.c ****         #ifdef BACKLIGHT_ENABLE
+ 224:keyboards/niu_mini/keymaps/planck/keymap.c ****           backlight_step();
+ 138               		.loc 1 224 0
+ 139 007c 0E94 0000 		call backlight_step
+ 140               	.LVL20:
+ 141 0080 00C0      		rjmp .L32
+ 142               	.LVL21:
+ 143               	.L14:
+ 225:keyboards/niu_mini/keymaps/planck/keymap.c ****         #endif
+ 226:keyboards/niu_mini/keymaps/planck/keymap.c ****       } else {
+ 227:keyboards/niu_mini/keymaps/planck/keymap.c ****         unregister_code(KC_RSFT);
+ 144               		.loc 1 227 0
+ 145 0082 0E94 0000 		call unregister_code
+ 146               	.LVL22:
+ 147 0086 00C0      		rjmp .L2
+ 148               	.LVL23:
+ 149               	.L7:
+ 228:keyboards/niu_mini/keymaps/planck/keymap.c ****       }
+ 229:keyboards/niu_mini/keymaps/planck/keymap.c ****       return false;
+ 230:keyboards/niu_mini/keymaps/planck/keymap.c ****       break;
+ 231:keyboards/niu_mini/keymaps/planck/keymap.c ****     case PLOVER:
+ 232:keyboards/niu_mini/keymaps/planck/keymap.c ****       if (record->event.pressed) {
+ 150               		.loc 1 232 0
+ 151 0088 CC23      		tst r28
+ 152 008a 01F0      		breq .L2
+ 233:keyboards/niu_mini/keymaps/planck/keymap.c ****         #ifdef AUDIO_ENABLE
+ 234:keyboards/niu_mini/keymaps/planck/keymap.c ****           stop_all_notes();
+ 153               		.loc 1 234 0
+ 154 008c 0E94 0000 		call stop_all_notes
+ 155               	.LVL24:
+ 235:keyboards/niu_mini/keymaps/planck/keymap.c ****           PLAY_SONG(plover_song);
+ 156               		.loc 1 235 0
+ 157 0090 40E0      		ldi r20,0
+ 158 0092 66E0      		ldi r22,lo8(6)
+ 159 0094 70E0      		ldi r23,0
+ 160 0096 80E0      		ldi r24,lo8(plover_song)
+ 161 0098 90E0      		ldi r25,hi8(plover_song)
+ 162 009a 0E94 0000 		call play_notes
+ 163               	.LVL25:
+ 236:keyboards/niu_mini/keymaps/planck/keymap.c ****         #endif
+ 237:keyboards/niu_mini/keymaps/planck/keymap.c ****         layer_off(_RAISE);
+ 164               		.loc 1 237 0
+ 165 009e 84E0      		ldi r24,lo8(4)
+ 166 00a0 0E94 0000 		call layer_off
+ 167               	.LVL26:
+ 238:keyboards/niu_mini/keymaps/planck/keymap.c ****         layer_off(_LOWER);
+ 168               		.loc 1 238 0
+ 169 00a4 83E0      		ldi r24,lo8(3)
+ 170 00a6 0E94 0000 		call layer_off
+ 171               	.LVL27:
+ 239:keyboards/niu_mini/keymaps/planck/keymap.c ****         layer_off(_ADJUST);
+ 172               		.loc 1 239 0
+ 173 00aa 86E0      		ldi r24,lo8(6)
+ 174 00ac 0E94 0000 		call layer_off
+ 175               	.LVL28:
+ 240:keyboards/niu_mini/keymaps/planck/keymap.c ****         layer_on(_PLOVER);
+ 176               		.loc 1 240 0
+ 177 00b0 85E0      		ldi r24,lo8(5)
+ 178 00b2 0E94 0000 		call layer_on
+ 179               	.LVL29:
+ 241:keyboards/niu_mini/keymaps/planck/keymap.c ****         if (!eeconfig_is_enabled()) {
+ 180               		.loc 1 241 0
+ 181 00b6 0E94 0000 		call eeconfig_is_enabled
+ 182               	.LVL30:
+ 183 00ba 8111      		cpse r24,__zero_reg__
+ 184 00bc 00C0      		rjmp .L15
+ 242:keyboards/niu_mini/keymaps/planck/keymap.c ****             eeconfig_init();
+ 185               		.loc 1 242 0
+ 186 00be 0E94 0000 		call eeconfig_init
+ 187               	.LVL31:
+ 188               	.L15:
+ 243:keyboards/niu_mini/keymaps/planck/keymap.c ****         }
+ 244:keyboards/niu_mini/keymaps/planck/keymap.c ****         keymap_config.raw = eeconfig_read_keymap();
+ 189               		.loc 1 244 0
+ 190 00c2 0E94 0000 		call eeconfig_read_keymap
+ 191               	.LVL32:
+ 192 00c6 90E0      		ldi r25,0
+ 193 00c8 9093 0000 		sts keymap_config+1,r25
+ 194 00cc 8093 0000 		sts keymap_config,r24
+ 245:keyboards/niu_mini/keymaps/planck/keymap.c ****         keymap_config.nkro = 1;
+ 195               		.loc 1 245 0
+ 196 00d0 8068      		ori r24,lo8(1<<7)
+ 197 00d2 8093 0000 		sts keymap_config,r24
+ 246:keyboards/niu_mini/keymaps/planck/keymap.c ****         eeconfig_update_keymap(keymap_config.raw);
+ 198               		.loc 1 246 0
+ 199 00d6 0E94 0000 		call eeconfig_update_keymap
+ 200               	.LVL33:
+ 201 00da 00C0      		rjmp .L32
+ 202               	.LVL34:
+ 203               	.L11:
+ 247:keyboards/niu_mini/keymaps/planck/keymap.c ****       }
+ 248:keyboards/niu_mini/keymaps/planck/keymap.c ****       return false;
+ 249:keyboards/niu_mini/keymaps/planck/keymap.c ****       break;
+ 250:keyboards/niu_mini/keymaps/planck/keymap.c ****     case EXT_PLV:
+ 251:keyboards/niu_mini/keymaps/planck/keymap.c ****       if (record->event.pressed) {
+ 204               		.loc 1 251 0
+ 205 00dc CC23      		tst r28
+ 206 00de 01F0      		breq .L2
+ 252:keyboards/niu_mini/keymaps/planck/keymap.c ****         #ifdef AUDIO_ENABLE
+ 253:keyboards/niu_mini/keymaps/planck/keymap.c ****           PLAY_SONG(plover_gb_song);
+ 207               		.loc 1 253 0
+ 208 00e0 40E0      		ldi r20,0
+ 209 00e2 66E0      		ldi r22,lo8(6)
+ 210 00e4 70E0      		ldi r23,0
+ 211               	.LVL35:
+ 212 00e6 80E0      		ldi r24,lo8(plover_gb_song)
+ 213 00e8 90E0      		ldi r25,hi8(plover_gb_song)
+ 214               	.LVL36:
+ 215 00ea 0E94 0000 		call play_notes
+ 216               	.LVL37:
+ 254:keyboards/niu_mini/keymaps/planck/keymap.c ****         #endif
+ 255:keyboards/niu_mini/keymaps/planck/keymap.c ****         layer_off(_PLOVER);
+ 217               		.loc 1 255 0
+ 218 00ee 85E0      		ldi r24,lo8(5)
+ 219 00f0 0E94 0000 		call layer_off
+ 220               	.LVL38:
+ 221               	.L32:
+ 256:keyboards/niu_mini/keymaps/planck/keymap.c ****       }
+ 257:keyboards/niu_mini/keymaps/planck/keymap.c ****       return false;
+ 222               		.loc 1 257 0
+ 223 00f4 C0E0      		ldi r28,0
+ 224 00f6 00C0      		rjmp .L2
+ 225               	.LVL39:
+ 226               	.L16:
+ 258:keyboards/niu_mini/keymaps/planck/keymap.c ****       break;
+ 259:keyboards/niu_mini/keymaps/planck/keymap.c ****   }
+ 260:keyboards/niu_mini/keymaps/planck/keymap.c ****   return true;
+ 227               		.loc 1 260 0
+ 228 00f8 C1E0      		ldi r28,lo8(1)
+ 229               	.LVL40:
+ 230               	.L2:
+ 261:keyboards/niu_mini/keymaps/planck/keymap.c **** }
+ 231               		.loc 1 261 0
+ 232 00fa 8C2F      		mov r24,r28
+ 233               	/* epilogue start */
+ 234 00fc CF91      		pop r28
+ 235 00fe 0895      		ret
+ 236               		.cfi_endproc
+ 237               	.LFE17:
+ 239               		.section	.progmem.data.__c.3473,"a",@progbits
+ 242               	__c.3473:
+ 243 0000 6D6F 6465 		.string	"mode just switched to qwerty and this is a huge string\n"
+ 243      206A 7573 
+ 243      7420 7377 
+ 243      6974 6368 
+ 243      6564 2074 
+ 244               	.global	plover_gb_song
+ 245               		.section	.data.plover_gb_song,"aw",@progbits
+ 248               	plover_gb_song:
+ 249 0000 0A        		.byte	10
+ 250 0001 A7        		.byte	-89
+ 251 0002 CF        		.byte	-49
+ 252 0003 44        		.byte	68
+ 253 0004 00        		.byte	0
+ 254 0005 00        		.byte	0
+ 255 0006 00        		.byte	0
+ 256 0007 41        		.byte	65
+ 257 0008 00        		.byte	0
+ 258 0009 00        		.byte	0
+ 259 000a DC        		.byte	-36
+ 260 000b 44        		.byte	68
+ 261 000c 00        		.byte	0
+ 262 000d 00        		.byte	0
+ 263 000e 00        		.byte	0
+ 264 000f 41        		.byte	65
+ 265 0010 00        		.byte	0
+ 266 0011 00        		.byte	0
+ 267 0012 00        		.byte	0
+ 268 0013 00        		.byte	0
+ 269 0014 00        		.byte	0
+ 270 0015 00        		.byte	0
+ 271 0016 80        		.byte	-128
+ 272 0017 40        		.byte	64
+ 273 0018 00        		.byte	0
+ 274 0019 00        		.byte	0
+ 275 001a 5C        		.byte	92
+ 276 001b 45        		.byte	69
+ 277 001c 00        		.byte	0
+ 278 001d 00        		.byte	0
+ 279 001e 40        		.byte	64
+ 280 001f 41        		.byte	65
+ 281 0020 00        		.byte	0
+ 282 0021 00        		.byte	0
+ 283 0022 00        		.byte	0
+ 284 0023 00        		.byte	0
+ 285 0024 00        		.byte	0
+ 286 0025 00        		.byte	0
+ 287 0026 80        		.byte	-128
+ 288 0027 40        		.byte	64
+ 289 0028 52        		.byte	82
+ 290 0029 D0        		.byte	-48
+ 291 002a 24        		.byte	36
+ 292 002b 45        		.byte	69
+ 293 002c 00        		.byte	0
+ 294 002d 00        		.byte	0
+ 295 002e 40        		.byte	64
+ 296 002f 41        		.byte	65
+ 297               	.global	plover_song
+ 298               		.section	.data.plover_song,"aw",@progbits
+ 301               	plover_song:
+ 302 0000 0A        		.byte	10
+ 303 0001 A7        		.byte	-89
+ 304 0002 CF        		.byte	-49
+ 305 0003 44        		.byte	68
+ 306 0004 00        		.byte	0
+ 307 0005 00        		.byte	0
+ 308 0006 00        		.byte	0
+ 309 0007 41        		.byte	65
+ 310 0008 00        		.byte	0
+ 311 0009 00        		.byte	0
+ 312 000a DC        		.byte	-36
+ 313 000b 44        		.byte	68
+ 314 000c 00        		.byte	0
+ 315 000d 00        		.byte	0
+ 316 000e 00        		.byte	0
+ 317 000f 41        		.byte	65
+ 318 0010 00        		.byte	0
+ 319 0011 00        		.byte	0
+ 320 0012 00        		.byte	0
+ 321 0013 00        		.byte	0
+ 322 0014 00        		.byte	0
+ 323 0015 00        		.byte	0
+ 324 0016 80        		.byte	-128
+ 325 0017 40        		.byte	64
+ 326 0018 52        		.byte	82
+ 327 0019 D0        		.byte	-48
+ 328 001a 24        		.byte	36
+ 329 001b 45        		.byte	69
+ 330 001c 00        		.byte	0
+ 331 001d 00        		.byte	0
+ 332 001e 40        		.byte	64
+ 333 001f 41        		.byte	65
+ 334 0020 00        		.byte	0
+ 335 0021 00        		.byte	0
+ 336 0022 00        		.byte	0
+ 337 0023 00        		.byte	0
+ 338 0024 00        		.byte	0
+ 339 0025 00        		.byte	0
+ 340 0026 80        		.byte	-128
+ 341 0027 40        		.byte	64
+ 342 0028 00        		.byte	0
+ 343 0029 00        		.byte	0
+ 344 002a 5C        		.byte	92
+ 345 002b 45        		.byte	69
+ 346 002c 00        		.byte	0
+ 347 002d 00        		.byte	0
+ 348 002e 40        		.byte	64
+ 349 002f 41        		.byte	65
+ 350               	.global	keymaps
+ 351               		.section	.progmem.data.keymaps,"a",@progbits
+ 354               	keymaps:
+ 355 0000 2900      		.word	41
+ 356 0002 1400      		.word	20
+ 357 0004 1A00      		.word	26
+ 358 0006 0800      		.word	8
+ 359 0008 1500      		.word	21
+ 360 000a 1700      		.word	23
+ 361 000c 1C00      		.word	28
+ 362 000e 1800      		.word	24
+ 363 0010 0C00      		.word	12
+ 364 0012 1200      		.word	18
+ 365 0014 1300      		.word	19
+ 366 0016 2A00      		.word	42
+ 367 0018 2B00      		.word	43
+ 368 001a 0400      		.word	4
+ 369 001c 1600      		.word	22
+ 370 001e 0700      		.word	7
+ 371 0020 0900      		.word	9
+ 372 0022 0A00      		.word	10
+ 373 0024 0B00      		.word	11
+ 374 0026 0D00      		.word	13
+ 375 0028 0E00      		.word	14
+ 376 002a 0F00      		.word	15
+ 377 002c 3300      		.word	51
+ 378 002e 3400      		.word	52
+ 379 0030 E100      		.word	225
+ 380 0032 1D00      		.word	29
+ 381 0034 1B00      		.word	27
+ 382 0036 0600      		.word	6
+ 383 0038 1900      		.word	25
+ 384 003a 0500      		.word	5
+ 385 003c 1100      		.word	17
+ 386 003e 1000      		.word	16
+ 387 0040 3600      		.word	54
+ 388 0042 3700      		.word	55
+ 389 0044 3800      		.word	56
+ 390 0046 2800      		.word	40
+ 391 0048 E05C      		.word	23776
+ 392 004a E000      		.word	224
+ 393 004c E200      		.word	226
+ 394 004e E300      		.word	227
+ 395 0050 DE5C      		.word	23774
+ 396 0052 2C00      		.word	44
+ 397 0054 0000      		.word	0
+ 398 0056 DF5C      		.word	23775
+ 399 0058 5000      		.word	80
+ 400 005a 5100      		.word	81
+ 401 005c 5200      		.word	82
+ 402 005e 4F00      		.word	79
+ 403 0060 2900      		.word	41
+ 404 0062 1400      		.word	20
+ 405 0064 1A00      		.word	26
+ 406 0066 0900      		.word	9
+ 407 0068 1300      		.word	19
+ 408 006a 0A00      		.word	10
+ 409 006c 0D00      		.word	13
+ 410 006e 0F00      		.word	15
+ 411 0070 1800      		.word	24
+ 412 0072 1C00      		.word	28
+ 413 0074 3300      		.word	51
+ 414 0076 2A00      		.word	42
+ 415 0078 2B00      		.word	43
+ 416 007a 0400      		.word	4
+ 417 007c 1500      		.word	21
+ 418 007e 1600      		.word	22
+ 419 0080 1700      		.word	23
+ 420 0082 0700      		.word	7
+ 421 0084 0B00      		.word	11
+ 422 0086 1100      		.word	17
+ 423 0088 0800      		.word	8
+ 424 008a 0C00      		.word	12
+ 425 008c 1200      		.word	18
+ 426 008e 3400      		.word	52
+ 427 0090 E100      		.word	225
+ 428 0092 1D00      		.word	29
+ 429 0094 1B00      		.word	27
+ 430 0096 0600      		.word	6
+ 431 0098 1900      		.word	25
+ 432 009a 0500      		.word	5
+ 433 009c 0E00      		.word	14
+ 434 009e 1000      		.word	16
+ 435 00a0 3600      		.word	54
+ 436 00a2 3700      		.word	55
+ 437 00a4 3800      		.word	56
+ 438 00a6 2800      		.word	40
+ 439 00a8 E05C      		.word	23776
+ 440 00aa E000      		.word	224
+ 441 00ac E200      		.word	226
+ 442 00ae E300      		.word	227
+ 443 00b0 DE5C      		.word	23774
+ 444 00b2 2C00      		.word	44
+ 445 00b4 0000      		.word	0
+ 446 00b6 DF5C      		.word	23775
+ 447 00b8 5000      		.word	80
+ 448 00ba 5100      		.word	81
+ 449 00bc 5200      		.word	82
+ 450 00be 4F00      		.word	79
+ 451 00c0 2900      		.word	41
+ 452 00c2 3400      		.word	52
+ 453 00c4 3600      		.word	54
+ 454 00c6 3700      		.word	55
+ 455 00c8 1300      		.word	19
+ 456 00ca 1C00      		.word	28
+ 457 00cc 0900      		.word	9
+ 458 00ce 0A00      		.word	10
+ 459 00d0 0600      		.word	6
+ 460 00d2 1500      		.word	21
+ 461 00d4 0F00      		.word	15
+ 462 00d6 2A00      		.word	42
+ 463 00d8 2B00      		.word	43
+ 464 00da 0400      		.word	4
+ 465 00dc 1200      		.word	18
+ 466 00de 0800      		.word	8
+ 467 00e0 1800      		.word	24
+ 468 00e2 0C00      		.word	12
+ 469 00e4 0700      		.word	7
+ 470 00e6 0B00      		.word	11
+ 471 00e8 1700      		.word	23
+ 472 00ea 1100      		.word	17
+ 473 00ec 1600      		.word	22
+ 474 00ee 3800      		.word	56
+ 475 00f0 E100      		.word	225
+ 476 00f2 3300      		.word	51
+ 477 00f4 1400      		.word	20
+ 478 00f6 0D00      		.word	13
+ 479 00f8 0E00      		.word	14
+ 480 00fa 1B00      		.word	27
+ 481 00fc 0500      		.word	5
+ 482 00fe 1000      		.word	16
+ 483 0100 1A00      		.word	26
+ 484 0102 1900      		.word	25
+ 485 0104 1D00      		.word	29
+ 486 0106 2800      		.word	40
+ 487 0108 E05C      		.word	23776
+ 488 010a E000      		.word	224
+ 489 010c E200      		.word	226
+ 490 010e E300      		.word	227
+ 491 0110 DE5C      		.word	23774
+ 492 0112 2C00      		.word	44
+ 493 0114 0000      		.word	0
+ 494 0116 DF5C      		.word	23775
+ 495 0118 5000      		.word	80
+ 496 011a 5100      		.word	81
+ 497 011c 5200      		.word	82
+ 498 011e 4F00      		.word	79
+ 499 0120 3502      		.word	565
+ 500 0122 1E02      		.word	542
+ 501 0124 1F02      		.word	543
+ 502 0126 2002      		.word	544
+ 503 0128 2102      		.word	545
+ 504 012a 2202      		.word	546
+ 505 012c 2302      		.word	547
+ 506 012e 2402      		.word	548
+ 507 0130 2502      		.word	549
+ 508 0132 2602      		.word	550
+ 509 0134 2702      		.word	551
+ 510 0136 2A00      		.word	42
+ 511 0138 4C00      		.word	76
+ 512 013a 3A00      		.word	58
+ 513 013c 3B00      		.word	59
+ 514 013e 3C00      		.word	60
+ 515 0140 3D00      		.word	61
+ 516 0142 3E00      		.word	62
+ 517 0144 3F00      		.word	63
+ 518 0146 2D02      		.word	557
+ 519 0148 2E02      		.word	558
+ 520 014a 2F02      		.word	559
+ 521 014c 3002      		.word	560
+ 522 014e 3102      		.word	561
+ 523 0150 0100      		.word	1
+ 524 0152 4000      		.word	64
+ 525 0154 4100      		.word	65
+ 526 0156 4200      		.word	66
+ 527 0158 4300      		.word	67
+ 528 015a 4400      		.word	68
+ 529 015c 4500      		.word	69
+ 530 015e 3202      		.word	562
+ 531 0160 6402      		.word	612
+ 532 0162 4A00      		.word	74
+ 533 0164 4D00      		.word	77
+ 534 0166 0100      		.word	1
+ 535 0168 0100      		.word	1
+ 536 016a 0100      		.word	1
+ 537 016c 0100      		.word	1
+ 538 016e 0100      		.word	1
+ 539 0170 0100      		.word	1
+ 540 0172 0100      		.word	1
+ 541 0174 0000      		.word	0
+ 542 0176 0100      		.word	1
+ 543 0178 AB00      		.word	171
+ 544 017a AA00      		.word	170
+ 545 017c A900      		.word	169
+ 546 017e AE00      		.word	174
+ 547 0180 3500      		.word	53
+ 548 0182 1E00      		.word	30
+ 549 0184 1F00      		.word	31
+ 550 0186 2000      		.word	32
+ 551 0188 2100      		.word	33
+ 552 018a 2200      		.word	34
+ 553 018c 2300      		.word	35
+ 554 018e 2400      		.word	36
+ 555 0190 2500      		.word	37
+ 556 0192 2600      		.word	38
+ 557 0194 2700      		.word	39
+ 558 0196 2A00      		.word	42
+ 559 0198 4C00      		.word	76
+ 560 019a 3A00      		.word	58
+ 561 019c 3B00      		.word	59
+ 562 019e 3C00      		.word	60
+ 563 01a0 3D00      		.word	61
+ 564 01a2 3E00      		.word	62
+ 565 01a4 3F00      		.word	63
+ 566 01a6 2D00      		.word	45
+ 567 01a8 2E00      		.word	46
+ 568 01aa 2F00      		.word	47
+ 569 01ac 3000      		.word	48
+ 570 01ae 3100      		.word	49
+ 571 01b0 0100      		.word	1
+ 572 01b2 4000      		.word	64
+ 573 01b4 4100      		.word	65
+ 574 01b6 4200      		.word	66
+ 575 01b8 4300      		.word	67
+ 576 01ba 4400      		.word	68
+ 577 01bc 4500      		.word	69
+ 578 01be 3200      		.word	50
+ 579 01c0 6400      		.word	100
+ 580 01c2 4B00      		.word	75
+ 581 01c4 4E00      		.word	78
+ 582 01c6 0100      		.word	1
+ 583 01c8 0100      		.word	1
+ 584 01ca 0100      		.word	1
+ 585 01cc 0100      		.word	1
+ 586 01ce 0100      		.word	1
+ 587 01d0 0100      		.word	1
+ 588 01d2 0100      		.word	1
+ 589 01d4 0000      		.word	0
+ 590 01d6 0100      		.word	1
+ 591 01d8 AB00      		.word	171
+ 592 01da AA00      		.word	170
+ 593 01dc A900      		.word	169
+ 594 01de AE00      		.word	174
+ 595 01e0 1E00      		.word	30
+ 596 01e2 1E00      		.word	30
+ 597 01e4 1E00      		.word	30
+ 598 01e6 1E00      		.word	30
+ 599 01e8 1E00      		.word	30
+ 600 01ea 1E00      		.word	30
+ 601 01ec 1E00      		.word	30
+ 602 01ee 1E00      		.word	30
+ 603 01f0 1E00      		.word	30
+ 604 01f2 1E00      		.word	30
+ 605 01f4 1E00      		.word	30
+ 606 01f6 1E00      		.word	30
+ 607 01f8 0000      		.word	0
+ 608 01fa 1400      		.word	20
+ 609 01fc 1A00      		.word	26
+ 610 01fe 0800      		.word	8
+ 611 0200 1500      		.word	21
+ 612 0202 1700      		.word	23
+ 613 0204 1C00      		.word	28
+ 614 0206 1800      		.word	24
+ 615 0208 0C00      		.word	12
+ 616 020a 1200      		.word	18
+ 617 020c 1300      		.word	19
+ 618 020e 2F00      		.word	47
+ 619 0210 0000      		.word	0
+ 620 0212 0400      		.word	4
+ 621 0214 1600      		.word	22
+ 622 0216 0700      		.word	7
+ 623 0218 0900      		.word	9
+ 624 021a 0A00      		.word	10
+ 625 021c 0B00      		.word	11
+ 626 021e 0D00      		.word	13
+ 627 0220 0E00      		.word	14
+ 628 0222 0F00      		.word	15
+ 629 0224 3300      		.word	51
+ 630 0226 3400      		.word	52
+ 631 0228 E15C      		.word	23777
+ 632 022a 0000      		.word	0
+ 633 022c 0000      		.word	0
+ 634 022e 0600      		.word	6
+ 635 0230 1900      		.word	25
+ 636 0232 0000      		.word	0
+ 637 0234 0000      		.word	0
+ 638 0236 1100      		.word	17
+ 639 0238 1000      		.word	16
+ 640 023a 0000      		.word	0
+ 641 023c 0000      		.word	0
+ 642 023e 0000      		.word	0
+ 643 0240 0100      		.word	1
+ 644 0242 005C      		.word	23552
+ 645 0244 015C      		.word	23553
+ 646 0246 0100      		.word	1
+ 647 0248 0100      		.word	1
+ 648 024a 0100      		.word	1
+ 649 024c 0100      		.word	1
+ 650 024e 0000      		.word	0
+ 651 0250 0000      		.word	0
+ 652 0252 0100      		.word	1
+ 653 0254 0100      		.word	1
+ 654 0256 4C00      		.word	76
+ 655 0258 0100      		.word	1
+ 656 025a 0100      		.word	1
+ 657 025c 265C      		.word	23590
+ 658 025e 1C5C      		.word	23580
+ 659 0260 1D5C      		.word	23581
+ 660 0262 135C      		.word	23571
+ 661 0264 0A5C      		.word	23562
+ 662 0266 DA5C      		.word	23770
+ 663 0268 DB5C      		.word	23771
+ 664 026a DC5C      		.word	23772
+ 665 026c DD5C      		.word	23773
+ 666 026e 0100      		.word	1
+ 667 0270 0100      		.word	1
+ 668 0272 285C      		.word	23592
+ 669 0274 275C      		.word	23591
+ 670 0276 235C      		.word	23587
+ 671 0278 245C      		.word	23588
+ 672 027a 295C      		.word	23593
+ 673 027c 2A5C      		.word	23594
+ 674 027e 0100      		.word	1
+ 675 0280 0100      		.word	1
+ 676 0282 0100      		.word	1
+ 677 0284 0100      		.word	1
+ 678 0286 0100      		.word	1
+ 679 0288 0100      		.word	1
+ 680 028a 0100      		.word	1
+ 681 028c 0100      		.word	1
+ 682 028e 0100      		.word	1
+ 683 0290 0100      		.word	1
+ 684 0292 0100      		.word	1
+ 685 0294 0000      		.word	0
+ 686 0296 0100      		.word	1
+ 687 0298 0100      		.word	1
+ 688 029a 0100      		.word	1
+ 689 029c 0100      		.word	1
+ 690 029e 0100      		.word	1
+ 691               		.text
+ 692               	.Letext0:
+ 693               		.file 2 "c:\\msys64\\home\\cris almanza\\qmk_utils\\avr8-gnu-toolchain\\avr\\include\\stdint.h"
+ 694               		.file 3 "tmk_core/common/keyboard.h"
+ 695               		.file 4 "tmk_core/common/keycode.h"
+ 696               		.file 5 "tmk_core/common/action.h"
+ 697               		.file 6 "tmk_core/common/report.h"
+ 698               		.file 7 "quantum/keycode_config.h"
+ 699               		.file 8 "quantum/quantum_keycodes.h"
+ 700               		.file 9 "tmk_core/common/action_util.h"
+ 701               		.file 10 "tmk_core/common/avr/xprintf.h"
+ 702               		.file 11 "quantum/quantum.h"
+ 703               		.file 12 "tmk_core/common/action_layer.h"
+ 704               		.file 13 "tmk_core/common/backlight.h"
+ 705               		.file 14 "quantum/audio/audio.h"
+ 706               		.file 15 "tmk_core/common/eeconfig.h"
+DEFINED SYMBOLS
+                            *ABS*:00000000 keymap.c
+C:\msys64\tmp\ccKPbPd1.s:2      *ABS*:0000003e __SP_H__
+C:\msys64\tmp\ccKPbPd1.s:3      *ABS*:0000003d __SP_L__
+C:\msys64\tmp\ccKPbPd1.s:4      *ABS*:0000003f __SREG__
+C:\msys64\tmp\ccKPbPd1.s:5      *ABS*:00000000 __tmp_reg__
+C:\msys64\tmp\ccKPbPd1.s:6      *ABS*:00000001 __zero_reg__
+C:\msys64\tmp\ccKPbPd1.s:13     .text.process_record_user:00000000 process_record_user
+C:\msys64\tmp\ccKPbPd1.s:242    .progmem.data.__c.3473:00000000 __c.3473
+C:\msys64\tmp\ccKPbPd1.s:301    .data.plover_song:00000000 plover_song
+C:\msys64\tmp\ccKPbPd1.s:248    .data.plover_gb_song:00000000 plover_gb_song
+C:\msys64\tmp\ccKPbPd1.s:354    .progmem.data.keymaps:00000000 keymaps
+
+UNDEFINED SYMBOLS
+__tablejump2__
+xputs
+set_single_persistent_default_layer
+layer_on
+update_tri_layer
+layer_off
+register_code
+backlight_step
+unregister_code
+stop_all_notes
+play_notes
+eeconfig_is_enabled
+eeconfig_init
+eeconfig_read_keymap
+keymap_config
+eeconfig_update_keymap
+__do_copy_data

@@ -1,0 +1,428 @@
+   1               		.file	"voices.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.section	.text.set_voice,"ax",@progbits
+  11               	.global	set_voice
+  13               	set_voice:
+  14               	.LFB17:
+  15               		.file 1 "quantum/audio/voices.c"
+   1:quantum/audio/voices.c **** /* Copyright 2016 Jack Humbert
+   2:quantum/audio/voices.c ****  *
+   3:quantum/audio/voices.c ****  * This program is free software: you can redistribute it and/or modify
+   4:quantum/audio/voices.c ****  * it under the terms of the GNU General Public License as published by
+   5:quantum/audio/voices.c ****  * the Free Software Foundation, either version 2 of the License, or
+   6:quantum/audio/voices.c ****  * (at your option) any later version.
+   7:quantum/audio/voices.c ****  *
+   8:quantum/audio/voices.c ****  * This program is distributed in the hope that it will be useful,
+   9:quantum/audio/voices.c ****  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+  10:quantum/audio/voices.c ****  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  11:quantum/audio/voices.c ****  * GNU General Public License for more details.
+  12:quantum/audio/voices.c ****  *
+  13:quantum/audio/voices.c ****  * You should have received a copy of the GNU General Public License
+  14:quantum/audio/voices.c ****  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  15:quantum/audio/voices.c ****  */
+  16:quantum/audio/voices.c **** #include "voices.h"
+  17:quantum/audio/voices.c **** #include "audio.h"
+  18:quantum/audio/voices.c **** #include "stdlib.h"
+  19:quantum/audio/voices.c **** 
+  20:quantum/audio/voices.c **** // these are imported from audio.c
+  21:quantum/audio/voices.c **** extern uint16_t envelope_index;
+  22:quantum/audio/voices.c **** extern float note_timbre;
+  23:quantum/audio/voices.c **** extern float polyphony_rate;
+  24:quantum/audio/voices.c **** extern bool glissando;
+  25:quantum/audio/voices.c **** 
+  26:quantum/audio/voices.c **** voice_type voice = default_voice;
+  27:quantum/audio/voices.c **** 
+  28:quantum/audio/voices.c **** void set_voice(voice_type v) {
+  16               		.loc 1 28 0
+  17               		.cfi_startproc
+  18               	.LVL0:
+  19               	/* prologue: function */
+  20               	/* frame size = 0 */
+  21               	/* stack size = 0 */
+  22               	.L__stack_usage = 0
+  29:quantum/audio/voices.c ****     voice = v;
+  23               		.loc 1 29 0
+  24 0000 8093 0000 		sts voice,r24
+  25 0004 0895      		ret
+  26               		.cfi_endproc
+  27               	.LFE17:
+  29               		.section	.text.voice_iterate,"ax",@progbits
+  30               	.global	voice_iterate
+  32               	voice_iterate:
+  33               	.LFB18:
+  30:quantum/audio/voices.c **** }
+  31:quantum/audio/voices.c **** 
+  32:quantum/audio/voices.c **** void voice_iterate() {
+  34               		.loc 1 32 0
+  35               		.cfi_startproc
+  36               	/* prologue: function */
+  37               	/* frame size = 0 */
+  38               	/* stack size = 0 */
+  39               	.L__stack_usage = 0
+  33:quantum/audio/voices.c ****     voice = (voice + 1) % number_of_voices;
+  40               		.loc 1 33 0
+  41 0000 1092 0000 		sts voice,__zero_reg__
+  42 0004 0895      		ret
+  43               		.cfi_endproc
+  44               	.LFE18:
+  46               		.section	.text.voice_deiterate,"ax",@progbits
+  47               	.global	voice_deiterate
+  49               	voice_deiterate:
+  50               	.LFB19:
+  34:quantum/audio/voices.c **** }
+  35:quantum/audio/voices.c **** 
+  36:quantum/audio/voices.c **** void voice_deiterate() {
+  51               		.loc 1 36 0
+  52               		.cfi_startproc
+  53               	/* prologue: function */
+  54               	/* frame size = 0 */
+  55               	/* stack size = 0 */
+  56               	.L__stack_usage = 0
+  37:quantum/audio/voices.c ****     voice = (voice - 1 + number_of_voices) % number_of_voices;
+  57               		.loc 1 37 0
+  58 0000 1092 0000 		sts voice,__zero_reg__
+  59 0004 0895      		ret
+  60               		.cfi_endproc
+  61               	.LFE19:
+  63               		.section	.text.voice_envelope,"ax",@progbits
+  64               	.global	voice_envelope
+  66               	voice_envelope:
+  67               	.LFB20:
+  38:quantum/audio/voices.c **** }
+  39:quantum/audio/voices.c **** 
+  40:quantum/audio/voices.c **** float voice_envelope(float frequency) {
+  68               		.loc 1 40 0
+  69               		.cfi_startproc
+  70               	.LVL1:
+  71 0000 0F93      		push r16
+  72               	.LCFI0:
+  73               		.cfi_def_cfa_offset 3
+  74               		.cfi_offset 16, -2
+  75 0002 1F93      		push r17
+  76               	.LCFI1:
+  77               		.cfi_def_cfa_offset 4
+  78               		.cfi_offset 17, -3
+  79               	/* prologue: function */
+  80               	/* frame size = 0 */
+  81               	/* stack size = 2 */
+  82               	.L__stack_usage = 2
+  83               	.LVL2:
+  41:quantum/audio/voices.c ****     // envelope_index ranges from 0 to 0xFFFF, which is preserved at 880.0 Hz
+  42:quantum/audio/voices.c ****     __attribute__ ((unused))
+  43:quantum/audio/voices.c ****     uint16_t compensated_index = (uint16_t)((float)envelope_index * (880.0 / frequency));
+  44:quantum/audio/voices.c **** 
+  45:quantum/audio/voices.c ****     switch (voice) {
+  84               		.loc 1 45 0
+  85 0004 2091 0000 		lds r18,voice
+  86 0008 2111      		cpse r18,__zero_reg__
+  87 000a 00C0      		rjmp .L5
+  46:quantum/audio/voices.c ****         case default_voice:
+  47:quantum/audio/voices.c ****             glissando = false;
+  88               		.loc 1 47 0
+  89 000c 1092 0000 		sts glissando,__zero_reg__
+  48:quantum/audio/voices.c ****             note_timbre = TIMBRE_50;
+  90               		.loc 1 48 0
+  91 0010 00E0      		ldi r16,0
+  92 0012 10E0      		ldi r17,0
+  93 0014 20E0      		ldi r18,0
+  94 0016 3FE3      		ldi r19,lo8(63)
+  95 0018 0093 0000 		sts note_timbre,r16
+  96 001c 1093 0000 		sts note_timbre+1,r17
+  97 0020 2093 0000 		sts note_timbre+2,r18
+  98 0024 3093 0000 		sts note_timbre+3,r19
+  49:quantum/audio/voices.c ****             polyphony_rate = 0;
+  99               		.loc 1 49 0
+ 100 0028 1092 0000 		sts polyphony_rate,__zero_reg__
+ 101 002c 1092 0000 		sts polyphony_rate+1,__zero_reg__
+ 102 0030 1092 0000 		sts polyphony_rate+2,__zero_reg__
+ 103 0034 1092 0000 		sts polyphony_rate+3,__zero_reg__
+ 104               	.L5:
+ 105               	/* epilogue start */
+  50:quantum/audio/voices.c **** 	        break;
+  51:quantum/audio/voices.c **** 
+  52:quantum/audio/voices.c ****     #ifdef AUDIO_VOICES
+  53:quantum/audio/voices.c **** 
+  54:quantum/audio/voices.c ****         case something:
+  55:quantum/audio/voices.c ****             glissando = false;
+  56:quantum/audio/voices.c ****             polyphony_rate = 0;
+  57:quantum/audio/voices.c ****             switch (compensated_index) {
+  58:quantum/audio/voices.c ****                 case 0 ... 9:
+  59:quantum/audio/voices.c ****                     note_timbre = TIMBRE_12;
+  60:quantum/audio/voices.c ****                     break;
+  61:quantum/audio/voices.c **** 
+  62:quantum/audio/voices.c ****                 case 10 ... 19:
+  63:quantum/audio/voices.c ****                     note_timbre = TIMBRE_25;
+  64:quantum/audio/voices.c ****                     break;
+  65:quantum/audio/voices.c **** 
+  66:quantum/audio/voices.c ****                 case 20 ... 200:
+  67:quantum/audio/voices.c ****                     note_timbre = .125 + .125;
+  68:quantum/audio/voices.c ****                     break;
+  69:quantum/audio/voices.c **** 
+  70:quantum/audio/voices.c ****                 default:
+  71:quantum/audio/voices.c ****                     note_timbre = .125;
+  72:quantum/audio/voices.c ****                     break;
+  73:quantum/audio/voices.c ****             }
+  74:quantum/audio/voices.c ****             break;
+  75:quantum/audio/voices.c **** 
+  76:quantum/audio/voices.c ****         case drums:
+  77:quantum/audio/voices.c ****             glissando = false;
+  78:quantum/audio/voices.c ****             polyphony_rate = 0;
+  79:quantum/audio/voices.c ****                 // switch (compensated_index) {
+  80:quantum/audio/voices.c ****                 //     case 0 ... 10:
+  81:quantum/audio/voices.c ****                 //         note_timbre = 0.5;
+  82:quantum/audio/voices.c ****                 //         break;
+  83:quantum/audio/voices.c ****                 //     case 11 ... 20:
+  84:quantum/audio/voices.c ****                 //         note_timbre = 0.5 * (21 - compensated_index) / 10;
+  85:quantum/audio/voices.c ****                 //         break;
+  86:quantum/audio/voices.c ****                 //     default:
+  87:quantum/audio/voices.c ****                 //         note_timbre = 0;
+  88:quantum/audio/voices.c ****                 //         break;
+  89:quantum/audio/voices.c ****                 // }
+  90:quantum/audio/voices.c ****                 // frequency = (rand() % (int)(frequency * 1.2 - frequency)) + (frequency * 0.8);
+  91:quantum/audio/voices.c **** 
+  92:quantum/audio/voices.c ****             if (frequency < 80.0) {
+  93:quantum/audio/voices.c **** 
+  94:quantum/audio/voices.c ****             } else if (frequency < 160.0) {
+  95:quantum/audio/voices.c **** 
+  96:quantum/audio/voices.c ****                 // Bass drum: 60 - 100 Hz
+  97:quantum/audio/voices.c ****                 frequency = (rand() % (int)(40)) + 60;
+  98:quantum/audio/voices.c ****                 switch (envelope_index) {
+  99:quantum/audio/voices.c ****                     case 0 ... 10:
+ 100:quantum/audio/voices.c ****                         note_timbre = 0.5;
+ 101:quantum/audio/voices.c ****                         break;
+ 102:quantum/audio/voices.c ****                     case 11 ... 20:
+ 103:quantum/audio/voices.c ****                         note_timbre = 0.5 * (21 - envelope_index) / 10;
+ 104:quantum/audio/voices.c ****                         break;
+ 105:quantum/audio/voices.c ****                     default:
+ 106:quantum/audio/voices.c ****                         note_timbre = 0;
+ 107:quantum/audio/voices.c ****                         break;
+ 108:quantum/audio/voices.c ****                 }
+ 109:quantum/audio/voices.c **** 
+ 110:quantum/audio/voices.c ****             } else if (frequency < 320.0) {
+ 111:quantum/audio/voices.c **** 
+ 112:quantum/audio/voices.c **** 
+ 113:quantum/audio/voices.c ****                 // Snare drum: 1 - 2 KHz
+ 114:quantum/audio/voices.c ****                 frequency = (rand() % (int)(1000)) + 1000;
+ 115:quantum/audio/voices.c ****                 switch (envelope_index) {
+ 116:quantum/audio/voices.c ****                     case 0 ... 5:
+ 117:quantum/audio/voices.c ****                         note_timbre = 0.5;
+ 118:quantum/audio/voices.c ****                         break;
+ 119:quantum/audio/voices.c ****                     case 6 ... 20:
+ 120:quantum/audio/voices.c ****                         note_timbre = 0.5 * (21 - envelope_index) / 15;
+ 121:quantum/audio/voices.c ****                         break;
+ 122:quantum/audio/voices.c ****                     default:
+ 123:quantum/audio/voices.c ****                         note_timbre = 0;
+ 124:quantum/audio/voices.c ****                         break;
+ 125:quantum/audio/voices.c ****                 }
+ 126:quantum/audio/voices.c **** 
+ 127:quantum/audio/voices.c ****             } else if (frequency < 640.0) {
+ 128:quantum/audio/voices.c **** 
+ 129:quantum/audio/voices.c ****                 // Closed Hi-hat: 3 - 5 KHz
+ 130:quantum/audio/voices.c ****                 frequency = (rand() % (int)(2000)) + 3000;
+ 131:quantum/audio/voices.c ****                 switch (envelope_index) {
+ 132:quantum/audio/voices.c ****                     case 0 ... 15:
+ 133:quantum/audio/voices.c ****                         note_timbre = 0.5;
+ 134:quantum/audio/voices.c ****                         break;
+ 135:quantum/audio/voices.c ****                     case 16 ... 20:
+ 136:quantum/audio/voices.c ****                         note_timbre = 0.5 * (21 - envelope_index) / 5;
+ 137:quantum/audio/voices.c ****                         break;
+ 138:quantum/audio/voices.c ****                     default:
+ 139:quantum/audio/voices.c ****                         note_timbre = 0;
+ 140:quantum/audio/voices.c ****                         break;
+ 141:quantum/audio/voices.c ****                 }
+ 142:quantum/audio/voices.c **** 
+ 143:quantum/audio/voices.c ****             } else if (frequency < 1280.0) {
+ 144:quantum/audio/voices.c **** 
+ 145:quantum/audio/voices.c ****                 // Open Hi-hat: 3 - 5 KHz
+ 146:quantum/audio/voices.c ****                 frequency = (rand() % (int)(2000)) + 3000;
+ 147:quantum/audio/voices.c ****                 switch (envelope_index) {
+ 148:quantum/audio/voices.c ****                     case 0 ... 35:
+ 149:quantum/audio/voices.c ****                         note_timbre = 0.5;
+ 150:quantum/audio/voices.c ****                         break;
+ 151:quantum/audio/voices.c ****                     case 36 ... 50:
+ 152:quantum/audio/voices.c ****                         note_timbre = 0.5 * (51 - envelope_index) / 15;
+ 153:quantum/audio/voices.c ****                         break;
+ 154:quantum/audio/voices.c ****                     default:
+ 155:quantum/audio/voices.c ****                         note_timbre = 0;
+ 156:quantum/audio/voices.c ****                         break;
+ 157:quantum/audio/voices.c ****                 }
+ 158:quantum/audio/voices.c **** 
+ 159:quantum/audio/voices.c ****             }
+ 160:quantum/audio/voices.c ****             break;
+ 161:quantum/audio/voices.c ****         case butts_fader:
+ 162:quantum/audio/voices.c ****             glissando = true;
+ 163:quantum/audio/voices.c ****             polyphony_rate = 0;
+ 164:quantum/audio/voices.c ****             switch (compensated_index) {
+ 165:quantum/audio/voices.c ****                 case 0 ... 9:
+ 166:quantum/audio/voices.c ****                     frequency = frequency / 4;
+ 167:quantum/audio/voices.c ****                     note_timbre = TIMBRE_12;
+ 168:quantum/audio/voices.c **** 	                break;
+ 169:quantum/audio/voices.c **** 
+ 170:quantum/audio/voices.c ****                 case 10 ... 19:
+ 171:quantum/audio/voices.c ****                     frequency = frequency / 2;
+ 172:quantum/audio/voices.c ****                     note_timbre = TIMBRE_12;
+ 173:quantum/audio/voices.c **** 	                break;
+ 174:quantum/audio/voices.c **** 
+ 175:quantum/audio/voices.c ****                 case 20 ... 200:
+ 176:quantum/audio/voices.c ****                     note_timbre = .125 - pow(((float)compensated_index - 20) / (200 - 20), 2)*.125;
+ 177:quantum/audio/voices.c **** 	                break;
+ 178:quantum/audio/voices.c **** 
+ 179:quantum/audio/voices.c ****                 default:
+ 180:quantum/audio/voices.c ****                     note_timbre = 0;
+ 181:quantum/audio/voices.c ****                 	break;
+ 182:quantum/audio/voices.c ****             }
+ 183:quantum/audio/voices.c ****     	    break;
+ 184:quantum/audio/voices.c **** 
+ 185:quantum/audio/voices.c ****         // case octave_crunch:
+ 186:quantum/audio/voices.c ****         //     polyphony_rate = 0;
+ 187:quantum/audio/voices.c ****         //     switch (compensated_index) {
+ 188:quantum/audio/voices.c ****         //         case 0 ... 9:
+ 189:quantum/audio/voices.c ****         //         case 20 ... 24:
+ 190:quantum/audio/voices.c ****         //         case 30 ... 32:
+ 191:quantum/audio/voices.c ****         //             frequency = frequency / 2;
+ 192:quantum/audio/voices.c ****         //             note_timbre = TIMBRE_12;
+ 193:quantum/audio/voices.c ****         //         break;
+ 194:quantum/audio/voices.c **** 
+ 195:quantum/audio/voices.c ****         //         case 10 ... 19:
+ 196:quantum/audio/voices.c ****         //         case 25 ... 29:
+ 197:quantum/audio/voices.c ****         //         case 33 ... 35:
+ 198:quantum/audio/voices.c ****         //             frequency = frequency * 2;
+ 199:quantum/audio/voices.c ****         //             note_timbre = TIMBRE_12;
+ 200:quantum/audio/voices.c **** 	       //          break;
+ 201:quantum/audio/voices.c **** 
+ 202:quantum/audio/voices.c ****         //         default:
+ 203:quantum/audio/voices.c ****         //             note_timbre = TIMBRE_12;
+ 204:quantum/audio/voices.c ****         //         	break;
+ 205:quantum/audio/voices.c ****         //     }
+ 206:quantum/audio/voices.c **** 	       //  break;
+ 207:quantum/audio/voices.c **** 
+ 208:quantum/audio/voices.c ****         case duty_osc:
+ 209:quantum/audio/voices.c ****             // This slows the loop down a substantial amount, so higher notes may freeze
+ 210:quantum/audio/voices.c ****             glissando = true;
+ 211:quantum/audio/voices.c ****             polyphony_rate = 0;
+ 212:quantum/audio/voices.c ****             switch (compensated_index) {
+ 213:quantum/audio/voices.c ****                 default:
+ 214:quantum/audio/voices.c ****                     #define OCS_SPEED 10
+ 215:quantum/audio/voices.c ****                     #define OCS_AMP   .25
+ 216:quantum/audio/voices.c ****                     // sine wave is slow
+ 217:quantum/audio/voices.c ****                     // note_timbre = (sin((float)compensated_index/10000*OCS_SPEED) * OCS_AMP / 2) 
+ 218:quantum/audio/voices.c ****                     // triangle wave is a bit faster
+ 219:quantum/audio/voices.c ****                     note_timbre = (float)abs((compensated_index*OCS_SPEED % 3000) - 1500) * ( OCS_A
+ 220:quantum/audio/voices.c ****                 	break;
+ 221:quantum/audio/voices.c ****             }
+ 222:quantum/audio/voices.c **** 	        break;
+ 223:quantum/audio/voices.c **** 
+ 224:quantum/audio/voices.c ****         case duty_octave_down:
+ 225:quantum/audio/voices.c ****             glissando = true;
+ 226:quantum/audio/voices.c ****             polyphony_rate = 0;
+ 227:quantum/audio/voices.c ****             note_timbre = (envelope_index % 2) * .125 + .375 * 2;
+ 228:quantum/audio/voices.c ****             if ((envelope_index % 4) == 0)
+ 229:quantum/audio/voices.c ****                 note_timbre = 0.5;
+ 230:quantum/audio/voices.c ****             if ((envelope_index % 8) == 0)
+ 231:quantum/audio/voices.c ****                 note_timbre = 0;
+ 232:quantum/audio/voices.c ****             break;
+ 233:quantum/audio/voices.c ****         case delayed_vibrato:
+ 234:quantum/audio/voices.c ****             glissando = true;
+ 235:quantum/audio/voices.c ****             polyphony_rate = 0;
+ 236:quantum/audio/voices.c ****             note_timbre = TIMBRE_50;
+ 237:quantum/audio/voices.c ****             #define VOICE_VIBRATO_DELAY 150
+ 238:quantum/audio/voices.c ****             #define VOICE_VIBRATO_SPEED 50
+ 239:quantum/audio/voices.c ****             switch (compensated_index) {
+ 240:quantum/audio/voices.c ****                 case 0 ... VOICE_VIBRATO_DELAY:
+ 241:quantum/audio/voices.c ****                     break;
+ 242:quantum/audio/voices.c ****                 default:
+ 243:quantum/audio/voices.c ****                     frequency = frequency * vibrato_lut[(int)fmod((((float)compensated_index - (VOI
+ 244:quantum/audio/voices.c ****                     break;
+ 245:quantum/audio/voices.c ****             }
+ 246:quantum/audio/voices.c ****             break;
+ 247:quantum/audio/voices.c ****         // case delayed_vibrato_octave:
+ 248:quantum/audio/voices.c ****         //     polyphony_rate = 0;
+ 249:quantum/audio/voices.c ****         //     if ((envelope_index % 2) == 1) {
+ 250:quantum/audio/voices.c ****         //         note_timbre = 0.55;
+ 251:quantum/audio/voices.c ****         //     } else {
+ 252:quantum/audio/voices.c ****         //         note_timbre = 0.45;
+ 253:quantum/audio/voices.c ****         //     }
+ 254:quantum/audio/voices.c ****         //     #define VOICE_VIBRATO_DELAY 150
+ 255:quantum/audio/voices.c ****         //     #define VOICE_VIBRATO_SPEED 50
+ 256:quantum/audio/voices.c ****         //     switch (compensated_index) {
+ 257:quantum/audio/voices.c ****         //         case 0 ... VOICE_VIBRATO_DELAY:
+ 258:quantum/audio/voices.c ****         //             break;
+ 259:quantum/audio/voices.c ****         //         default:
+ 260:quantum/audio/voices.c ****         //             frequency = frequency * VIBRATO_LUT[(int)fmod((((float)compensated_index - (
+ 261:quantum/audio/voices.c ****         //             break;
+ 262:quantum/audio/voices.c ****         //     }
+ 263:quantum/audio/voices.c ****         //     break;
+ 264:quantum/audio/voices.c ****         // case duty_fifth_down:
+ 265:quantum/audio/voices.c ****         //     note_timbre = 0.5;
+ 266:quantum/audio/voices.c ****         //     if ((envelope_index % 3) == 0)
+ 267:quantum/audio/voices.c ****         //         note_timbre = 0.75;
+ 268:quantum/audio/voices.c ****         //     break;
+ 269:quantum/audio/voices.c ****         // case duty_fourth_down:
+ 270:quantum/audio/voices.c ****         //     note_timbre = 0.0;
+ 271:quantum/audio/voices.c ****         //     if ((envelope_index % 12) == 0)
+ 272:quantum/audio/voices.c ****         //         note_timbre = 0.75;
+ 273:quantum/audio/voices.c ****         //     if (((envelope_index % 12) % 4) != 1)
+ 274:quantum/audio/voices.c ****         //         note_timbre = 0.75;
+ 275:quantum/audio/voices.c ****         //     break;
+ 276:quantum/audio/voices.c ****         // case duty_third_down:
+ 277:quantum/audio/voices.c ****         //     note_timbre = 0.5;
+ 278:quantum/audio/voices.c ****         //     if ((envelope_index % 5) == 0)
+ 279:quantum/audio/voices.c ****         //         note_timbre = 0.75;
+ 280:quantum/audio/voices.c ****         //     break;
+ 281:quantum/audio/voices.c ****         // case duty_fifth_third_down:
+ 282:quantum/audio/voices.c ****         //     note_timbre = 0.5;
+ 283:quantum/audio/voices.c ****         //     if ((envelope_index % 5) == 0)
+ 284:quantum/audio/voices.c ****         //         note_timbre = 0.75;
+ 285:quantum/audio/voices.c ****         //     if ((envelope_index % 3) == 0)
+ 286:quantum/audio/voices.c ****         //         note_timbre = 0.25;
+ 287:quantum/audio/voices.c ****         //     break;
+ 288:quantum/audio/voices.c **** 
+ 289:quantum/audio/voices.c ****     #endif
+ 290:quantum/audio/voices.c **** 
+ 291:quantum/audio/voices.c **** 		default:
+ 292:quantum/audio/voices.c ****    			break;
+ 293:quantum/audio/voices.c ****     }
+ 294:quantum/audio/voices.c **** 
+ 295:quantum/audio/voices.c ****     return frequency;
+ 296:quantum/audio/voices.c **** }
+ 106               		.loc 1 296 0
+ 107 0038 1F91      		pop r17
+ 108 003a 0F91      		pop r16
+ 109 003c 0895      		ret
+ 110               		.cfi_endproc
+ 111               	.LFE20:
+ 113               	.global	voice
+ 114               		.section	.bss.voice,"aw",@nobits
+ 117               	voice:
+ 118 0000 00        		.zero	1
+ 119               		.text
+ 120               	.Letext0:
+ 121               		.file 2 "c:\\msys64\\home\\cris almanza\\qmk_utils\\avr8-gnu-toolchain\\avr\\include\\stdint.h"
+ 122               		.file 3 "quantum/audio/voices.h"
+ 123               		.file 4 "tmk_core/common/report.h"
+ 124               		.file 5 "tmk_core/common/action_util.h"
+DEFINED SYMBOLS
+                            *ABS*:00000000 voices.c
+C:\msys64\tmp\cc14zFQ9.s:2      *ABS*:0000003e __SP_H__
+C:\msys64\tmp\cc14zFQ9.s:3      *ABS*:0000003d __SP_L__
+C:\msys64\tmp\cc14zFQ9.s:4      *ABS*:0000003f __SREG__
+C:\msys64\tmp\cc14zFQ9.s:5      *ABS*:00000000 __tmp_reg__
+C:\msys64\tmp\cc14zFQ9.s:6      *ABS*:00000001 __zero_reg__
+C:\msys64\tmp\cc14zFQ9.s:13     .text.set_voice:00000000 set_voice
+C:\msys64\tmp\cc14zFQ9.s:117    .bss.voice:00000000 voice
+C:\msys64\tmp\cc14zFQ9.s:32     .text.voice_iterate:00000000 voice_iterate
+C:\msys64\tmp\cc14zFQ9.s:49     .text.voice_deiterate:00000000 voice_deiterate
+C:\msys64\tmp\cc14zFQ9.s:66     .text.voice_envelope:00000000 voice_envelope
+
+UNDEFINED SYMBOLS
+glissando
+note_timbre
+polyphony_rate
+__do_clear_bss

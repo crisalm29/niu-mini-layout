@@ -1,0 +1,384 @@
+   1               		.file	"process_audio.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               	.global	__floatsisf
+  11               	.global	__divsf3
+  12               	.global	__mulsf3
+  13               		.section	.text.compute_freq_for_midi_note,"ax",@progbits
+  14               	.global	compute_freq_for_midi_note
+  16               	compute_freq_for_midi_note:
+  17               	.LFB17:
+  18               		.file 1 "quantum/process_keycode/process_audio.c"
+   1:quantum/process_keycode/process_audio.c **** #include "audio.h"
+   2:quantum/process_keycode/process_audio.c **** #include "process_audio.h"
+   3:quantum/process_keycode/process_audio.c **** 
+   4:quantum/process_keycode/process_audio.c **** #ifndef VOICE_CHANGE_SONG
+   5:quantum/process_keycode/process_audio.c ****     #define VOICE_CHANGE_SONG SONG(VOICE_CHANGE_SOUND)
+   6:quantum/process_keycode/process_audio.c **** #endif
+   7:quantum/process_keycode/process_audio.c **** float voice_change_song[][2] = VOICE_CHANGE_SONG;
+   8:quantum/process_keycode/process_audio.c **** 
+   9:quantum/process_keycode/process_audio.c **** #ifndef PITCH_STANDARD_A
+  10:quantum/process_keycode/process_audio.c ****     #define PITCH_STANDARD_A 440.0f
+  11:quantum/process_keycode/process_audio.c **** #endif
+  12:quantum/process_keycode/process_audio.c **** 
+  13:quantum/process_keycode/process_audio.c **** float compute_freq_for_midi_note(uint8_t note)
+  14:quantum/process_keycode/process_audio.c **** {
+  19               		.loc 1 14 0
+  20               		.cfi_startproc
+  21               	.LVL0:
+  22               	/* prologue: function */
+  23               	/* frame size = 0 */
+  24               	/* stack size = 0 */
+  25               	.L__stack_usage = 0
+  15:quantum/process_keycode/process_audio.c ****     // https://en.wikipedia.org/wiki/MIDI_tuning_standard
+  16:quantum/process_keycode/process_audio.c ****     return pow(2.0, (note - 69) / 12.0) * PITCH_STANDARD_A;
+  26               		.loc 1 16 0
+  27 0000 682F      		mov r22,r24
+  28 0002 70E0      		ldi r23,0
+  29 0004 6554      		subi r22,69
+  30 0006 7109      		sbc r23,__zero_reg__
+  31 0008 072E      		mov __tmp_reg__,r23
+  32 000a 000C      		lsl r0
+  33 000c 880B      		sbc r24,r24
+  34 000e 990B      		sbc r25,r25
+  35 0010 0E94 0000 		call __floatsisf
+  36               	.LVL1:
+  37 0014 20E0      		ldi r18,0
+  38 0016 30E0      		ldi r19,0
+  39 0018 40E4      		ldi r20,lo8(64)
+  40 001a 51E4      		ldi r21,lo8(65)
+  41 001c 0E94 0000 		call __divsf3
+  42               	.LVL2:
+  43 0020 9B01      		movw r18,r22
+  44 0022 AC01      		movw r20,r24
+  45 0024 60E0      		ldi r22,0
+  46 0026 70E0      		ldi r23,0
+  47 0028 80E0      		ldi r24,0
+  48 002a 90E4      		ldi r25,lo8(64)
+  49 002c 0E94 0000 		call pow
+  50               	.LVL3:
+  51 0030 20E0      		ldi r18,0
+  52 0032 30E0      		ldi r19,0
+  53 0034 4CED      		ldi r20,lo8(-36)
+  54 0036 53E4      		ldi r21,lo8(67)
+  55 0038 0E94 0000 		call __mulsf3
+  56               	.LVL4:
+  17:quantum/process_keycode/process_audio.c **** }
+  57               		.loc 1 17 0
+  58 003c 0895      		ret
+  59               		.cfi_endproc
+  60               	.LFE17:
+  62               		.section	.text.process_audio,"ax",@progbits
+  63               	.global	process_audio
+  65               	process_audio:
+  66               	.LFB18:
+  18:quantum/process_keycode/process_audio.c **** 
+  19:quantum/process_keycode/process_audio.c **** bool process_audio(uint16_t keycode, keyrecord_t *record) {
+  67               		.loc 1 19 0
+  68               		.cfi_startproc
+  69               	.LVL5:
+  70               	/* prologue: function */
+  71               	/* frame size = 0 */
+  72               	/* stack size = 0 */
+  73               	.L__stack_usage = 0
+  74 0000 FB01      		movw r30,r22
+  20:quantum/process_keycode/process_audio.c **** 
+  21:quantum/process_keycode/process_audio.c ****     if (keycode == AU_ON && record->event.pressed) {
+  75               		.loc 1 21 0
+  76 0002 8C31      		cpi r24,28
+  77 0004 2CE5      		ldi r18,92
+  78 0006 9207      		cpc r25,r18
+  79 0008 01F4      		brne .L3
+  80               		.loc 1 21 0 is_stmt 0 discriminator 1
+  81 000a 8281      		ldd r24,Z+2
+  82               	.LVL6:
+  83 000c 8823      		tst r24
+  84 000e 01F0      		breq .L15
+  85               	.LVL7:
+  86               	.L8:
+  22:quantum/process_keycode/process_audio.c ****       audio_on();
+  87               		.loc 1 22 0 is_stmt 1
+  88 0010 0E94 0000 		call audio_on
+  89               	.LVL8:
+  90 0014 00C0      		rjmp .L17
+  91               	.LVL9:
+  92               	.L3:
+  23:quantum/process_keycode/process_audio.c ****       return false;
+  24:quantum/process_keycode/process_audio.c ****     }
+  25:quantum/process_keycode/process_audio.c **** 
+  26:quantum/process_keycode/process_audio.c ****     if (keycode == AU_OFF && record->event.pressed) {
+  93               		.loc 1 26 0
+  94 0016 8D31      		cpi r24,29
+  95 0018 2CE5      		ldi r18,92
+  96 001a 9207      		cpc r25,r18
+  97 001c 01F4      		brne .L5
+  98               		.loc 1 26 0 is_stmt 0 discriminator 1
+  99 001e 8281      		ldd r24,Z+2
+ 100               	.LVL10:
+ 101 0020 8823      		tst r24
+ 102 0022 01F0      		breq .L15
+ 103               	.LVL11:
+ 104               	.L7:
+  27:quantum/process_keycode/process_audio.c ****       audio_off();
+ 105               		.loc 1 27 0 is_stmt 1
+ 106 0024 0E94 0000 		call audio_off
+ 107               	.LVL12:
+ 108 0028 00C0      		rjmp .L17
+ 109               	.LVL13:
+ 110               	.L5:
+  28:quantum/process_keycode/process_audio.c ****       return false;
+  29:quantum/process_keycode/process_audio.c ****     }
+  30:quantum/process_keycode/process_audio.c **** 
+  31:quantum/process_keycode/process_audio.c ****     if (keycode == AU_TOG && record->event.pressed) {
+ 111               		.loc 1 31 0
+ 112 002a 8E31      		cpi r24,30
+ 113 002c 2CE5      		ldi r18,92
+ 114 002e 9207      		cpc r25,r18
+ 115 0030 01F4      		brne .L6
+ 116               		.loc 1 31 0 is_stmt 0 discriminator 1
+ 117 0032 8281      		ldd r24,Z+2
+ 118               	.LVL14:
+ 119 0034 8823      		tst r24
+ 120 0036 01F0      		breq .L15
+  32:quantum/process_keycode/process_audio.c ****         if (is_audio_on()) {
+ 121               		.loc 1 32 0 is_stmt 1
+ 122 0038 0E94 0000 		call is_audio_on
+ 123               	.LVL15:
+ 124 003c 8111      		cpse r24,__zero_reg__
+ 125 003e 00C0      		rjmp .L7
+ 126 0040 00C0      		rjmp .L8
+ 127               	.LVL16:
+ 128               	.L6:
+  33:quantum/process_keycode/process_audio.c ****             audio_off();
+  34:quantum/process_keycode/process_audio.c ****         } else {
+  35:quantum/process_keycode/process_audio.c ****             audio_on();
+  36:quantum/process_keycode/process_audio.c ****         }
+  37:quantum/process_keycode/process_audio.c ****         return false;
+  38:quantum/process_keycode/process_audio.c ****     }
+  39:quantum/process_keycode/process_audio.c **** 
+  40:quantum/process_keycode/process_audio.c ****     if (keycode == MUV_IN && record->event.pressed) {
+ 129               		.loc 1 40 0
+ 130 0042 8732      		cpi r24,39
+ 131 0044 2CE5      		ldi r18,92
+ 132 0046 9207      		cpc r25,r18
+ 133 0048 01F4      		brne .L9
+ 134               		.loc 1 40 0 is_stmt 0 discriminator 1
+ 135 004a 8281      		ldd r24,Z+2
+ 136               	.LVL17:
+ 137 004c 8823      		tst r24
+ 138 004e 01F0      		breq .L15
+  41:quantum/process_keycode/process_audio.c ****         voice_iterate();
+ 139               		.loc 1 41 0 is_stmt 1
+ 140 0050 0E94 0000 		call voice_iterate
+ 141               	.LVL18:
+ 142 0054 00C0      		rjmp .L16
+ 143               	.LVL19:
+ 144               	.L9:
+  42:quantum/process_keycode/process_audio.c ****         PLAY_SONG(voice_change_song);
+  43:quantum/process_keycode/process_audio.c ****         return false;
+  44:quantum/process_keycode/process_audio.c ****     }
+  45:quantum/process_keycode/process_audio.c **** 
+  46:quantum/process_keycode/process_audio.c ****     if (keycode == MUV_DE && record->event.pressed) {
+ 145               		.loc 1 46 0
+ 146 0056 8832      		cpi r24,40
+ 147 0058 9C45      		sbci r25,92
+ 148 005a 01F4      		brne .L15
+ 149               		.loc 1 46 0 is_stmt 0 discriminator 1
+ 150 005c 8281      		ldd r24,Z+2
+ 151               	.LVL20:
+ 152 005e 8823      		tst r24
+ 153 0060 01F0      		breq .L15
+  47:quantum/process_keycode/process_audio.c ****         voice_deiterate();
+ 154               		.loc 1 47 0 is_stmt 1
+ 155 0062 0E94 0000 		call voice_deiterate
+ 156               	.LVL21:
+ 157               	.L16:
+  48:quantum/process_keycode/process_audio.c ****         PLAY_SONG(voice_change_song);
+ 158               		.loc 1 48 0
+ 159 0066 40E0      		ldi r20,0
+ 160 0068 64E0      		ldi r22,lo8(4)
+ 161 006a 70E0      		ldi r23,0
+ 162 006c 80E0      		ldi r24,lo8(voice_change_song)
+ 163 006e 90E0      		ldi r25,hi8(voice_change_song)
+ 164 0070 0E94 0000 		call play_notes
+ 165               	.LVL22:
+ 166               	.L17:
+  49:quantum/process_keycode/process_audio.c ****         return false;
+ 167               		.loc 1 49 0
+ 168 0074 80E0      		ldi r24,0
+ 169 0076 0895      		ret
+ 170               	.LVL23:
+ 171               	.L15:
+  50:quantum/process_keycode/process_audio.c ****     }
+  51:quantum/process_keycode/process_audio.c **** 
+  52:quantum/process_keycode/process_audio.c ****     return true;
+ 172               		.loc 1 52 0
+ 173 0078 81E0      		ldi r24,lo8(1)
+  53:quantum/process_keycode/process_audio.c **** }
+ 174               		.loc 1 53 0
+ 175 007a 0895      		ret
+ 176               		.cfi_endproc
+ 177               	.LFE18:
+ 179               		.section	.text.process_audio_noteon,"ax",@progbits
+ 180               	.global	process_audio_noteon
+ 182               	process_audio_noteon:
+ 183               	.LFB19:
+  54:quantum/process_keycode/process_audio.c **** 
+  55:quantum/process_keycode/process_audio.c **** void process_audio_noteon(uint8_t note) {
+ 184               		.loc 1 55 0
+ 185               		.cfi_startproc
+ 186               	.LVL24:
+ 187               	/* prologue: function */
+ 188               	/* frame size = 0 */
+ 189               	/* stack size = 0 */
+ 190               	.L__stack_usage = 0
+  56:quantum/process_keycode/process_audio.c ****     play_note(compute_freq_for_midi_note(note), 0xF);
+ 191               		.loc 1 56 0
+ 192 0000 0E94 0000 		call compute_freq_for_midi_note
+ 193               	.LVL25:
+ 194 0004 4FE0      		ldi r20,lo8(15)
+ 195 0006 50E0      		ldi r21,0
+ 196 0008 0C94 0000 		jmp play_note
+ 197               	.LVL26:
+ 198               		.cfi_endproc
+ 199               	.LFE19:
+ 201               		.section	.text.process_audio_noteoff,"ax",@progbits
+ 202               	.global	process_audio_noteoff
+ 204               	process_audio_noteoff:
+ 205               	.LFB20:
+  57:quantum/process_keycode/process_audio.c **** }
+  58:quantum/process_keycode/process_audio.c **** 
+  59:quantum/process_keycode/process_audio.c **** void process_audio_noteoff(uint8_t note) {
+ 206               		.loc 1 59 0
+ 207               		.cfi_startproc
+ 208               	.LVL27:
+ 209               	/* prologue: function */
+ 210               	/* frame size = 0 */
+ 211               	/* stack size = 0 */
+ 212               	.L__stack_usage = 0
+  60:quantum/process_keycode/process_audio.c ****     stop_note(compute_freq_for_midi_note(note));
+ 213               		.loc 1 60 0
+ 214 0000 0E94 0000 		call compute_freq_for_midi_note
+ 215               	.LVL28:
+ 216 0004 0C94 0000 		jmp stop_note
+ 217               	.LVL29:
+ 218               		.cfi_endproc
+ 219               	.LFE20:
+ 221               		.section	.text.process_audio_all_notes_off,"ax",@progbits
+ 222               	.global	process_audio_all_notes_off
+ 224               	process_audio_all_notes_off:
+ 225               	.LFB21:
+  61:quantum/process_keycode/process_audio.c **** }
+  62:quantum/process_keycode/process_audio.c **** 
+  63:quantum/process_keycode/process_audio.c **** void process_audio_all_notes_off(void) {
+ 226               		.loc 1 63 0
+ 227               		.cfi_startproc
+ 228               	/* prologue: function */
+ 229               	/* frame size = 0 */
+ 230               	/* stack size = 0 */
+ 231               	.L__stack_usage = 0
+  64:quantum/process_keycode/process_audio.c ****     stop_all_notes();
+ 232               		.loc 1 64 0
+ 233 0000 0C94 0000 		jmp stop_all_notes
+ 234               	.LVL30:
+ 235               		.cfi_endproc
+ 236               	.LFE21:
+ 238               		.section	.text.audio_on_user,"ax",@progbits
+ 239               		.weak	audio_on_user
+ 241               	audio_on_user:
+ 242               	.LFB22:
+  65:quantum/process_keycode/process_audio.c **** }
+  66:quantum/process_keycode/process_audio.c **** 
+  67:quantum/process_keycode/process_audio.c **** __attribute__ ((weak))
+  68:quantum/process_keycode/process_audio.c **** void audio_on_user() {}
+ 243               		.loc 1 68 0
+ 244               		.cfi_startproc
+ 245               	/* prologue: function */
+ 246               	/* frame size = 0 */
+ 247               	/* stack size = 0 */
+ 248               	.L__stack_usage = 0
+ 249 0000 0895      		ret
+ 250               		.cfi_endproc
+ 251               	.LFE22:
+ 253               	.global	voice_change_song
+ 254               		.section	.data.voice_change_song,"aw",@progbits
+ 257               	voice_change_song:
+ 258 0000 00        		.byte	0
+ 259 0001 00        		.byte	0
+ 260 0002 5C        		.byte	92
+ 261 0003 44        		.byte	68
+ 262 0004 00        		.byte	0
+ 263 0005 00        		.byte	0
+ 264 0006 80        		.byte	-128
+ 265 0007 41        		.byte	65
+ 266 0008 5C        		.byte	92
+ 267 0009 97        		.byte	-105
+ 268 000a 8A        		.byte	-118
+ 269 000b 44        		.byte	68
+ 270 000c 00        		.byte	0
+ 271 000d 00        		.byte	0
+ 272 000e 80        		.byte	-128
+ 273 000f 41        		.byte	65
+ 274 0010 52        		.byte	82
+ 275 0011 D0        		.byte	-48
+ 276 0012 A4        		.byte	-92
+ 277 0013 44        		.byte	68
+ 278 0014 00        		.byte	0
+ 279 0015 00        		.byte	0
+ 280 0016 80        		.byte	-128
+ 281 0017 41        		.byte	65
+ 282 0018 00        		.byte	0
+ 283 0019 00        		.byte	0
+ 284 001a DC        		.byte	-36
+ 285 001b 44        		.byte	68
+ 286 001c 00        		.byte	0
+ 287 001d 00        		.byte	0
+ 288 001e 80        		.byte	-128
+ 289 001f 41        		.byte	65
+ 290               		.text
+ 291               	.Letext0:
+ 292               		.file 2 "c:\\msys64\\home\\cris almanza\\qmk_utils\\avr8-gnu-toolchain\\avr\\include\\stdint.h"
+ 293               		.file 3 "tmk_core/common/keyboard.h"
+ 294               		.file 4 "tmk_core/common/action.h"
+ 295               		.file 5 "tmk_core/common/report.h"
+ 296               		.file 6 "tmk_core/common/action_util.h"
+ 297               		.file 7 "quantum/audio/audio.h"
+ 298               		.file 8 "quantum/audio/voices.h"
+ 299               		.file 9 "quantum/quantum_keycodes.h"
+ 300               		.file 10 "c:\\msys64\\home\\cris almanza\\qmk_utils\\avr8-gnu-toolchain\\avr\\include\\math.h"
+DEFINED SYMBOLS
+                            *ABS*:00000000 process_audio.c
+C:\msys64\tmp\ccIDemN6.s:2      *ABS*:0000003e __SP_H__
+C:\msys64\tmp\ccIDemN6.s:3      *ABS*:0000003d __SP_L__
+C:\msys64\tmp\ccIDemN6.s:4      *ABS*:0000003f __SREG__
+C:\msys64\tmp\ccIDemN6.s:5      *ABS*:00000000 __tmp_reg__
+C:\msys64\tmp\ccIDemN6.s:6      *ABS*:00000001 __zero_reg__
+C:\msys64\tmp\ccIDemN6.s:16     .text.compute_freq_for_midi_note:00000000 compute_freq_for_midi_note
+C:\msys64\tmp\ccIDemN6.s:65     .text.process_audio:00000000 process_audio
+C:\msys64\tmp\ccIDemN6.s:257    .data.voice_change_song:00000000 voice_change_song
+C:\msys64\tmp\ccIDemN6.s:182    .text.process_audio_noteon:00000000 process_audio_noteon
+C:\msys64\tmp\ccIDemN6.s:204    .text.process_audio_noteoff:00000000 process_audio_noteoff
+C:\msys64\tmp\ccIDemN6.s:224    .text.process_audio_all_notes_off:00000000 process_audio_all_notes_off
+C:\msys64\tmp\ccIDemN6.s:241    .text.audio_on_user:00000000 audio_on_user
+
+UNDEFINED SYMBOLS
+__floatsisf
+__divsf3
+__mulsf3
+pow
+audio_on
+audio_off
+is_audio_on
+voice_iterate
+voice_deiterate
+play_notes
+play_note
+stop_note
+stop_all_notes
+__do_copy_data
